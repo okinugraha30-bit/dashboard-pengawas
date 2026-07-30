@@ -74,11 +74,10 @@
             </div>
         </div>
 
-        <!-- TABEL LOGS DENGAN TOMBOL EKSPOR EXCEL -->
+        <!-- TABEL LOGS DENGAN EKSPOR EXCEL & KOLOM RUANGAN -->
         <div class="bg-white rounded-xl shadow overflow-hidden">
             <div class="p-4 border-b border-gray-200 flex justify-between items-center">
                 <h2 class="text-lg font-bold text-gray-800">Log Pelanggaran Masuk</h2>
-                <!-- TOMBOL EKSPOR KE EXCEL -->
                 <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition flex items-center gap-2 shadow">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -92,13 +91,14 @@
                         <tr class="bg-gray-50 text-gray-600 text-xs uppercase font-semibold border-b">
                             <th class="p-4">Waktu</th>
                             <th class="p-4">Nama Siswa</th>
+                            <th class="p-4">Ruangan</th>
                             <th class="p-4">Jenis Pelanggaran</th>
                             <th class="p-4">Jumlah Pelanggaran</th>
                         </tr>
                     </thead>
                     <tbody id="log-table-body" class="divide-y divide-gray-200 text-sm">
                         <tr id="empty-row">
-                            <td colspan="4" class="p-4 text-center text-gray-400">Belum ada aktivitas pelanggaran terdeteksi.</td>
+                            <td colspan="5" class="p-4 text-center text-gray-400">Belum ada aktivitas pelanggaran terdeteksi.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -106,7 +106,7 @@
         </div>
     </div>
 
-    <!-- SCRIPT UTAMA -->
+    <!-- SCRIPT UTAMA DASHBOARD -->
     <script>
         const AUTH_CONFIG = { username: "113201", password: "cbt26" };
         const PUBNUB_CONFIG = {
@@ -118,7 +118,7 @@
         let uniqueStudentsSet = new Set();
         let pubnub = null;
 
-        // RUMUS GENERATE TOKEN
+        // RUMUS TOKEN DINAMIS PER 1 MENIT
         function getDynamicToken() {
             var SECRET_KEY = 7892;
             var minuteStep = Math.floor(Date.now() / 60000);
@@ -126,7 +126,7 @@
             return String(rawToken).padStart(6, '0');
         }
 
-        // TIMER TOKEN REALTIME
+        // TIMER REFRESH TOKEN REALTIME
         setInterval(function() {
             var tokenEl = document.getElementById('current-token');
             var timerEl = document.getElementById('token-timer');
@@ -209,6 +209,7 @@
             row.innerHTML = `
                 <td class="p-4 font-mono text-xs text-gray-500">${data.timestamp || new Date().toLocaleTimeString('id-ID')}</td>
                 <td class="p-4 font-semibold text-gray-900">${data.studentName || 'Anonim'}</td>
+                <td class="p-4 text-gray-600 font-medium">${data.room || 'Ruang 01'}</td>
                 <td class="p-4"><span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-medium">${data.reason || 'Pelanggaran Detected'}</span></td>
                 <td class="p-4 text-center font-bold text-red-600">${data.count || 1}</td>
             `;
@@ -217,32 +218,29 @@
             setTimeout(() => row.classList.remove('bg-yellow-100'), 2000);
         }
 
-        // FUNGSI EKSPOR KE EXCEL
+        // FUNGSI EKSPOR KE EXCEL (.XLSX)
         function exportToExcel() {
             if (logHistory.length === 0) {
                 alert("Belum ada data pelanggaran untuk diekspor!");
                 return;
             }
 
-            // Format data untuk Excel
             const excelData = logHistory.map((item, index) => ({
                 "No": index + 1,
                 "Waktu": item.timestamp || '-',
                 "Nama Siswa": item.studentName || 'Anonim',
+                "Ruangan": item.room || 'Ruang 01',
                 "Jenis Pelanggaran": item.reason || 'Pelanggaran Detected',
                 "Pelanggaran Ke-": item.count || 1
             }));
 
-            // Buat worksheet dan workbook
             const worksheet = XLSX.utils.json_to_sheet(excelData);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "Log Pelanggaran");
 
-            // Format nama file Excel dengan tanggal hari ini
             const dateStr = new Date().toISOString().split('T')[0];
             const fileName = `Laporan_Pelanggaran_CBT_${dateStr}.xlsx`;
 
-            // Download file Excel
             XLSX.writeFile(workbook, fileName);
         }
     </script>
