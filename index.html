@@ -274,15 +274,22 @@
       playBeepSound();
     }
 
-   // CONNECT KE PUSHER REAL-TIME CHANNEL
-try {
-  const pusher = new Pusher(PUSHER_CONFIG.key, { 
-    cluster: PUSHER_CONFIG.cluster,
-    forceTLS: true
-  });
-  
-  // DENGARKAN PRIVATE CHANNEL YANG SAMA
-  const channel = pusher.subscribe('private-cbt-channel');
+  // CONFIG PUBNUB
+const pubnub = new PubNub({
+  subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659", // Masukkan Sub Key PubNub Anda
+  userId: "dashboard-proctor-client"
+});
+
+// Dengarkan Channel Ujian
+pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
+
+pubnub.addListener({
+  message: function(event) {
+    if (event.message) {
+      renderLogData(event.message); // Menampilkan langsung ke Tabel Dashboard!
+    }
+  }
+});
   
   // Menerima Event Dari Siswa
   channel.bind('client-violation-event', function(data) {
