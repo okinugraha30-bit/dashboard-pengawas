@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Pengawas - Monitoring & Security CBT</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome Icon -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Pusher JS (Menghubungkan Moodle & Dashboard Beda Domain) -->
+  <script src="https://js.pusher.com/8.0/pusher.min.js"></script>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between font-sans">
+
+  <!-- ========================================================================= -->
+  <!-- 1. MODAL LOGIN PENGAWAS                                                   -->
+  <!-- ========================================================================= -->
+  <div id="login-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[99999] flex items-center justify-center p-4">
+    <div class="bg-slate-800 border border-slate-700 rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-6">
+      <div class="text-center space-y-2">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-600/20 text-indigo-400 mb-2 border border-indigo-500/30">
+          <i class="fa-solid fa-user-shield text-3xl"></i>
+        </div>
+        <h2 class="text-2xl font-bold text-slate-100">Portal Login Pengawas</h2>
+        <p class="text-xs text-slate-400">Masukkan kredensial khusus untuk mengakses Dashboard</p>
+      </div>
+
+      <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1.5">Username Pengawas</label>
+          <input type="text" id="username-input" required placeholder="pengawas" 
+                 class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-all">
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-300 mb-1.5">Password</label>
+          <input type="password" id="password-input" required placeholder="••••••••" 
+                 class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-all">
+        </div>
+
+        <div id="login-error" class="hidden bg-red-950/50 border border-red-800/50 text-red-400 text-xs p-3 rounded-xl flex items-center space-x-2">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span>Username atau password salah!</span>
+        </div>
+
+        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl text-sm transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center space-x-2">
+          <span>Masuk Dashboard</span>
+          <i class="fa-solid fa-arrow-right text-xs"></i>
+        </button>
+      </form>
+    </div>
+  </div>
+
+
+  <!-- ========================================================================= -->
+  <!-- 2. HEADER DASHBOARD                                                       -->
+  <!-- ========================================================================= -->
+  <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 shadow-lg">
+    <div class="max-w-6xl mx-auto flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <i class="fa-solid fa-shield-halved text-indigo-400 text-2xl"></i>
+        <div>
+          <h1 class="text-lg font-bold leading-tight">Dashboard Monitor Pengawas</h1>
+          <p class="text-xs text-slate-400">Sistem Deteksi Kecurangan Real-Time & Token Ujian</p>
+        </div>
+      </div>
+      
+      <div class="flex items-center space-x-6">
+        <div class="text-right hidden sm:block">
+          <div id="live-clock" class="text-xl font-mono font-bold text-indigo-400">00:00:00 WIB</div>
+        </div>
+        <button onclick="handleLogout()" class="bg-slate-700 hover:bg-red-600/80 text-slate-300 hover:text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition-all">
+          Logout
+        </button>
+      </div>
+    </div>
+  </header>
+
+
+  <!-- ========================================================================= -->
+  <!-- 3. KONTEN UTAMA (GRID 2 KOLOM)                                           -->
+  <!-- ========================================================================= -->
+  <main class="max-w-6xl w-full mx-auto p-6 flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6">
+    
+    <!-- KOLOM KIRI: GENERATOR TOKEN (1 KOLOM) -->
+    <div class="lg:col-span-1 space-y-6">
+      <div class="bg-slate-800 border border-slate-700 rounded-3xl p-6 shadow-xl text-center space-y-6">
+        
+        <div class="flex justify-between items-center bg-slate-900/60 border border-slate-700 px-4 py-2 rounded-xl">
+          <span class="text-xs text-emerald-400 font-medium flex items-center space-x-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Koneksi Pusher Active</span>
+          </span>
+          <span class="text-xs text-slate-400">Sisa: <strong id="countdown" class="font-mono text-amber-400">15:00</strong></span>
+        </div>
+
+        <div>
+          <p class="text-xs uppercase tracking-widest text-slate-400 font-semibold mb-2">Token Aktif (15 Mins)</p>
+          <div class="bg-indigo-950 border-2 border-indigo-500/50 rounded-2xl py-4 shadow-inner">
+            <span id="active-token" class="text-5xl font-mono font-black tracking-widest text-indigo-300">----</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-2">Berikan token ini untuk membukakan layar siswa.</p>
+        </div>
+
+        <div class="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+          <div id="progress-bar" class="bg-indigo-500 h-2 transition-all duration-1000" style="width: 100%;"></div>
+        </div>
+
+        <div class="bg-slate-900/40 p-3 rounded-xl border border-slate-700/50 text-left">
+          <p class="text-xs text-slate-400 font-medium">Master Key Emergency:</p>
+          <code class="text-xs font-mono font-bold text-red-400">ADMIN99</code>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- KOLOM KANAN: TABEL REPORT AKTIVITAS KECURANGAN (2 KOLOM) -->
+    <div class="lg:col-span-2 bg-slate-800 border border-slate-700 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
+      <div>
+        <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
+          <div class="flex items-center space-x-2">
+            <i class="fa-solid fa-triangle-exclamation text-amber-400 text-lg"></i>
+            <h2 class="font-bold text-slate-200 text-base">Report Aktivitas Kecurangan</h2>
+          </div>
+          <span id="total-violations" class="bg-red-500/20 text-red-400 text-xs px-3 py-1 rounded-full font-bold border border-red-500/30">
+            0 Pelanggaran
+          </span>
+        </div>
+
+        <!-- TABEL REPORT REAL-TIME -->
+        <div class="overflow-y-auto max-h-[380px] pr-1">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-900/80 text-slate-400 uppercase font-semibold sticky top-0">
+              <tr>
+                <th class="p-3 rounded-l-lg">Waktu</th>
+                <th class="p-3">Nama Siswa</th>
+                <th class="p-3">Aktivitas Terdeteksi</th>
+                <th class="p-3 text-center rounded-r-lg">Frekuensi</th>
+              </tr>
+            </thead>
+            <tbody id="violation-log-table" class="divide-y divide-slate-700/50 text-slate-300">
+              <tr id="empty-log-row">
+                <td colspan="4" class="text-center py-10 text-slate-500 italic">
+                  Belum ada indikasi kecurangan yang terdeteksi dari siswa.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="mt-4 pt-3 border-t border-slate-700/60 flex justify-between items-center text-[11px] text-slate-500">
+        <span>Sistem akan berbunyi 'bip' otomatis jika ada siswa melanggar.</span>
+        <button onclick="clearLog()" class="text-slate-400 hover:text-slate-200 underline">Bersihkan Laporan</button>
+      </div>
+    </div>
+
+  </main>
+
+  <footer class="text-center py-4 border-t border-slate-800 text-xs text-slate-500">
+    CBT Security Controller &bull; Real-Time Proctoring System
+  </footer>
+
+
+  <!-- ========================================================================= -->
+  <!-- 4. LOGIKA JAVASCRIPT REAL-TIME & PUSHER RECEIVER                          -->
+  <!-- ========================================================================= -->
+  <script>
+    // A. CONFIG PUSHER & AUTHENTICATION
+    const PUSHER_CONFIG = {
+      key: 'GANTI_DENGAN_PUSHER_KEY_ANDA',      // Sesuaikan Key Pusher
+      cluster: 'GANTI_DENGAN_PUSHER_CLUSTER_ANDA' // Contoh: 'ap1'
+    };
+
+    const AUTH_CONFIG = {
+      username: "pengawas",
+      password: "cbtproctor2026"
+    };
+
+    // Pengecekan Login
+    document.addEventListener("DOMContentLoaded", () => {
+      if (sessionStorage.getItem("proctor_logged_in") === "true") {
+        document.getElementById("login-modal").classList.add("hidden");
+      }
+    });
+
+    function handleLogin(e) {
+      e.preventDefault();
+      if (document.getElementById("username-input").value.trim() === AUTH_CONFIG.username && 
+          document.getElementById("password-input").value.trim() === AUTH_CONFIG.password) {
+        sessionStorage.setItem("proctor_logged_in", "true");
+        document.getElementById("login-modal").classList.add("hidden");
+      } else {
+        document.getElementById("login-error").classList.remove("hidden");
+      }
+    }
+
+    function handleLogout() {
+      sessionStorage.removeItem("proctor_logged_in");
+      document.getElementById("login-modal").classList.remove("hidden");
+    }
+
+    // B. LOGIKA TOKEN 15 MENIT
+    function getDynamicToken(timeBlock) {
+      const hash = Math.abs((timeBlock * 9301 + 49297) % 233280);
+      return hash.toString(36).substring(0, 4).toUpperCase();
+    }
+
+    function updateDashboard() {
+      const now = new Date();
+      document.getElementById('live-clock').innerText = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')} WIB`;
+
+      const currentTimeMs = now.getTime();
+      const intervalMs = 15 * 60 * 1000;
+      const currentBlock = Math.floor(currentTimeMs / intervalMs);
+
+      document.getElementById('active-token').innerText = getDynamicToken(currentBlock);
+
+      const msRemaining = intervalMs - (currentTimeMs % intervalMs);
+      const totalSecsRemaining = Math.floor(msRemaining / 1000);
+      document.getElementById('countdown').innerText = `${String(Math.floor(totalSecsRemaining / 60)).padStart(2, '0')}:${String(totalSecsRemaining % 60).padStart(2, '0')}`;
+      document.getElementById('progress-bar').style.width = `${(msRemaining / intervalMs) * 100}%`;
+    }
+    setInterval(updateDashboard, 1000);
+    updateDashboard();
+
+    // C. SUARA ALARM BIP SAAT ADA PELANGGARAN
+    function playBeepSound() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+        osc.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+      } catch(e) {}
+    }
+
+    // D. PENERIMAAN LAPORAN KECURANGAN VIA PUSHER / BROADCASTCHANNEL
+    let totalViolationCounter = 0;
+
+    function renderLogData(data) {
+      const emptyRow = document.getElementById('empty-log-row');
+      if (emptyRow) emptyRow.remove();
+
+      totalViolationCounter++;
+      document.getElementById('total-violations').innerText = `${totalViolationCounter} Pelanggaran`;
+
+      const tableBody = document.getElementById('violation-log-table');
+      const newRow = document.createElement('tr');
+      newRow.className = "hover:bg-slate-700/30 transition-all border-b border-slate-700/40 bg-red-950/10";
+      
+      newRow.innerHTML = `
+        <td class="p-3 font-mono text-slate-400">${data.timestamp}</td>
+        <td class="p-3 font-semibold text-amber-300">${data.studentName}</td>
+        <td class="p-3 text-red-400 flex items-center space-x-1.5">
+          <i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
+          <span>${data.reason}</span>
+        </td>
+        <td class="p-3 text-center font-bold">
+          <span class="bg-red-950 text-red-400 border border-red-800/60 px-2 py-0.5 rounded-md text-[10px]">
+            ${data.count}x
+          </span>
+        </td>
+      `;
+
+      tableBody.insertBefore(newRow, tableBody.firstChild);
+      playBeepSound();
+    }
+
+    // Connect Ke Pusher
+    try {
+      const pusher = new Pusher(PUSHER_CONFIG.key, { cluster: PUSHER_CONFIG.cluster });
+      const channel = pusher.subscribe('cbt-channel');
+      channel.bind('violation-event', function(data) {
+        renderLogData(data);
+      });
+    } catch(e) { console.log('Pusher fallback active'); }
+
+    // Fallback Local Channel
+    const localChannel = new BroadcastChannel('cbt_proctor_channel');
+    localChannel.onmessage = function(e) {
+      if(e.data && e.data.type === 'VIOLATION_LOG') renderLogData(e.data);
+    };
+
+    function clearLog() {
+      document.getElementById('violation-log-table').innerHTML = `<tr id="empty-log-row"><td colspan="4" class="text-center py-10 text-slate-500 italic">Belum ada indikasi kecurangan yang terdeteksi dari siswa.</td></tr>`;
+      totalViolationCounter = 0;
+      document.getElementById('total-violations').innerText = `0 Pelanggaran`;
+    }
+  </script>
+</body>
+</html>
