@@ -1,378 +1,212 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard Pengawas CBT - Live Monitoring</title>
-  
-  <!-- Tailwind CSS CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- PubNub SDK -->
-  <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.2.min.js"></script>
-  
-  <!-- Font & Icons -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  
-  <style>
-    @keyframes pulse-red {
-      0%, 100% { background-color: rgba(239, 68, 68, 0.1); }
-      50% { background-color: rgba(239, 68, 68, 0.3); }
-    }
-    .flash-violation {
-      animation: pulse-red 1s ease-in-out 2;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard Pengawas CBT</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PubNub SDK -->
+    <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
+<body class="bg-gray-100 text-gray-800 font-sans antialiased">
 
-  <!-- ==================== HALAMAN LOGIN ==================== -->
-  <div id="login-section" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950 p-4">
-    <div class="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md">
-      <div class="text-center mb-8">
-        <div class="inline-flex p-3 bg-blue-600/10 text-blue-500 rounded-xl mb-3">
-          <i class="fa-solid fa-shield-halved text-3xl"></i>
+    <!-- Audio Beep untuk Notifikasi -->
+    <audio id="alert-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+
+    <!-- SECTION LOGIN -->
+    <div id="login-section" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-md border border-gray-200">
+            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Login Pengawas CBT</h2>
+            
+            <div id="login-error" class="hidden mb-4 p-3 bg-red-100 border border-red-400 text-red-700 text-sm rounded">
+                Username atau password salah!
+            </div>
+
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Username</label>
+                    <input type="text" id="username-input" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Password</label>
+                    <input type="password" id="password-input" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition">
+                    Masuk Dashboard
+                </button>
+            </form>
         </div>
-        <h1 class="text-2xl font-bold text-white">Dashboard Pengawas</h1>
-        <p class="text-sm text-slate-400 mt-1">Masuk untuk memantau ujian real-time</p>
-      </div>
-
-      <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
-        <div>
-          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Username</label>
-          <input type="text" id="username-input" required 
-            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors"
-            placeholder="Masukkan username">
-        </div>
-
-        <div>
-          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Password</label>
-          <input type="password" id="password-input" required 
-            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors"
-            placeholder="Masukkan password">
-        </div>
-
-        <p id="login-error" class="text-xs text-red-500 hidden text-center font-medium">Username atau Password salah!</p>
-
-        <button type="submit" 
-          class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg transition-colors shadow-lg shadow-blue-600/30">
-          Masuk ke Dashboard
-        </button>
-      </form>
     </div>
-  </div>
 
-  <!-- ==================== DASHBOARD UTAMA ==================== -->
-  <div id="dashboard-section" class="hidden flex-col flex-1">
-    
-    <!-- Header -->
-    <header class="bg-slate-800 border-b border-slate-700/60 sticky top-0 z-30">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-        <div class="flex items-center gap-3">
-          <div class="p-2 bg-blue-500/10 text-blue-400 rounded-lg">
-            <i class="fa-solid fa-desktop text-xl"></i>
-          </div>
-          <div>
-            <h1 class="text-lg font-bold text-white leading-tight">Monitoring Ujian CBT Real-Time</h1>
-            <p class="text-xs text-slate-400">Pantau aktivitas & deteksi kecurangan siswa secara langsung</p>
-          </div>
-        </div>
-
-        <!-- Token Buka Kunci Box -->
-        <div class="flex items-center gap-3 bg-slate-900 border border-slate-700/80 px-4 py-2 rounded-xl">
-          <div>
-            <span class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Token Buka Kunci (15 Min)</span>
-            <span id="current-token" class="text-xl font-mono font-bold text-amber-400 tracking-widest">----</span>
-          </div>
-          <button onclick="copyToken()" title="Salin Token" class="p-2 text-slate-400 hover:text-white transition-colors">
-            <i class="fa-regular fa-copy text-lg"></i>
-          </button>
-        </div>
-
-        <!-- User Logout -->
-        <div class="flex items-center gap-3">
-          <span class="text-xs text-slate-300 font-medium">Pengawas Ujian</span>
-          <button onclick="handleLogout()" class="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 px-3 py-1.5 rounded-lg transition-colors border border-red-500/20">
-            <i class="fa-solid fa-right-from-bracket mr-1"></i> Keluar
-          </button>
-        </div>
-      </div>
-    </header>
-
-    <!-- Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1">
-      
-      <!-- Summary Cards -->
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <div class="bg-slate-800/60 border border-slate-700/50 p-4 rounded-xl flex items-center gap-4">
-          <div class="p-3 bg-red-500/10 text-red-400 rounded-lg text-xl">
-            <i class="fa-solid fa-triangle-exclamation"></i>
-          </div>
-          <div>
-            <span class="text-xs text-slate-400 uppercase font-semibold">Total Pelanggaran</span>
-            <p id="total-violations" class="text-2xl font-bold text-white">0</p>
-          </div>
-        </div>
-
-        <div class="bg-slate-800/60 border border-slate-700/50 p-4 rounded-xl flex items-center gap-4">
-          <div class="p-3 bg-amber-500/10 text-amber-400 rounded-lg text-xl">
-            <i class="fa-solid fa-users"></i>
-          </div>
-          <div>
-            <span class="text-xs text-slate-400 uppercase font-semibold">Siswa Melanggar</span>
-            <p id="unique-students" class="text-2xl font-bold text-white">0</p>
-          </div>
-        </div>
-
-        <div class="bg-slate-800/60 border border-slate-700/50 p-4 rounded-xl flex items-center gap-4">
-          <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg text-xl">
-            <i class="fa-solid fa-signal"></i>
-          </div>
-          <div>
-            <span class="text-xs text-slate-400 uppercase font-semibold">Status Server</span>
-            <p id="server-status" class="text-sm font-semibold text-emerald-400 flex items-center gap-1.5">
-              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Terhubung (PubNub)
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <!-- Table Section -->
-      <div class="bg-slate-800/60 border border-slate-700/50 rounded-xl overflow-hidden shadow-xl">
-        
-        <!-- Controls -->
-        <div class="p-4 border-b border-slate-700/60 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div class="relative w-full sm:w-72">
-            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
-            <input type="text" id="search-input" oninput="filterLogs()" 
-              placeholder="Cari nama siswa atau pelanggaran..." 
-              class="w-full bg-slate-900 border border-slate-700 text-xs text-white pl-9 pr-4 py-2 rounded-lg focus:outline-none focus:border-blue-500">
-          </div>
-
-          <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
-            <button onclick="clearLogs()" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-lg transition-colors">
-              <i class="fa-solid fa-trash-can mr-1"></i> Bersihkan Log
+    <!-- SECTION DASHBOARD -->
+    <div id="dashboard-section" class="hidden min-h-screen p-6">
+        <!-- Header Dashboard -->
+        <header class="bg-white shadow rounded-xl p-4 mb-6 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold text-gray-800">Dashboard Pemantauan Pelanggaran Ujian</h1>
+                <p class="text-sm text-gray-500">Monitoring Real-Time via PubNub</p>
+            </div>
+            <button onclick="handleLogout()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
+                Logout
             </button>
-            <button onclick="exportToCSV()" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg transition-colors font-medium">
-              <i class="fa-solid fa-file-excel mr-1"></i> Ekspor CSV
-            </button>
-          </div>
+        </header>
+
+        <!-- Stats Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+            <div class="bg-white p-5 rounded-xl shadow border-l-4 border-yellow-500">
+                <p class="text-sm font-semibold text-gray-500">Total Kejadian Pelanggaran</p>
+                <p id="total-logs" class="text-3xl font-bold text-gray-800 mt-1">0</p>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow border-l-4 border-red-500">
+                <p class="text-sm font-semibold text-gray-500">Siswa Terindikasi Melanggar</p>
+                <p id="total-students" class="text-3xl font-bold text-gray-800 mt-1">0</p>
+            </div>
         </div>
 
-        <!-- Table -->
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-sm text-slate-300">
-            <thead class="bg-slate-900/80 text-xs font-semibold uppercase text-slate-400 border-b border-slate-700">
-              <tr>
-                <th class="py-3 px-4">Waktu</th>
-                <th class="py-3 px-4">Nama Siswa</th>
-                <th class="py-3 px-4">Detail Pelanggaran</th>
-                <th class="py-3 px-4 text-center">Jumlah Pelanggaran</th>
-              </tr>
-            </thead>
-            <tbody id="log-table-body" class="divide-y divide-slate-700/50">
-              <tr id="empty-row">
-                <td colspan="4" class="py-12 text-center text-slate-500">
-                  <i class="fa-solid fa-inbox text-3xl mb-2 block"></i>
-                  Belum ada aktivitas pelanggaran yang terdeteksi.
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <!-- Tabel Monitoring Log -->
+        <div class="bg-white rounded-xl shadow overflow-hidden">
+            <div class="p-4 border-b border-gray-200">
+                <h2 class="text-lg font-bold text-gray-800">Log Pelanggaran Masuk</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-gray-50 text-gray-600 text-xs uppercase font-semibold border-b">
+                            <th class="p-4">Waktu</th>
+                            <th class="p-4">Nama Siswa</th>
+                            <th class="p-4">Jenis Pelanggaran</th>
+                            <th class="p-4">Jumlah Pelanggaran</th>
+                        </tr>
+                    </thead>
+                    <tbody id="log-table-body" class="divide-y divide-gray-200 text-sm">
+                        <tr id="empty-row">
+                            <td colspan="4" class="p-4 text-center text-gray-400">Belum ada aktivitas pelanggaran terdeteksi.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
         </div>
-      </div>
+    </div>
 
-    </main>
-  </div>
+    <!-- SCRIPT UTAMA -->
+    <script>
+        // 1. CONFIG AUTH & PUBNUB
+        const AUTH_CONFIG = {
+            username: "113201",
+            password: "cbt26"
+        };
 
-  <!-- Audio Beep untuk Notifikasi -->
-  <audio id="alert-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
+        const PUBNUB_CONFIG = {
+            subscribeKey: "sub-c-5ebc26d7-e2a2-4a0b-9ccb-14fddbdfec88",
+            channel: "cbt_monitoring_channel"
+        };
 
-  <!-- ==================== SCRIPT SIKLUS UTAMA ==================== -->
-  <script>
-    // 1. CONFIG AUTH & PUBNUB
-    const AUTH_CONFIG = {
-      username: "113201",
-      password: "cbt26"
-    };
+        let logHistory = [];
+        let uniqueStudentsSet = new Set();
+        let pubnub = null;
 
-    const PUBNUB_CONFIG = {
-      subscribeKey: "sub-c-5ebc26d7-e2a2-4a0b-9ccb-14fddbdfec88", // Ganti dengan Subscribe Key PubNub Anda jika beda
-      channel: "cbt_monitoring_channel"
-    };
-
-    let logHistory = [];
-    let uniqueStudentsSet = new Set();
-
-    // 2. MANAGEMENT LOGIN & LOGOUT
-    function handleLogin(e) {
-      e.preventDefault();
-      const userVal = document.getElementById('username-input').value.trim();
-      const passVal = document.getElementById('password-input').value.trim();
-
-      if (userVal === AUTH_CONFIG.username && passVal === AUTH_CONFIG.password) {
-        localStorage.setItem('cbt_logged_in', 'true');
-        showDashboard();
-      } else {
-        document.getElementById('login-error').classList.remove('hidden');
-      }
-    }
-
-    function handleLogout() {
-      localStorage.removeItem('cbt_logged_in');
-      location.reload();
-    }
-
-    function showDashboard() {
-      document.getElementById('login-section').classList.add('hidden');
-      document.getElementById('dashboard-section').classList.remove('hidden');
-      document.getElementById('dashboard-section').classList.add('flex');
-      initPubNub();
-      startTokenTimer();
-    }
-
-    // 3. GENERATE TOKEN DINAMIS (KODE TOKEN LOKAL)
-    function getDynamicToken() {
-      const now = new Date();
-      const timeBlock = Math.floor(now.getTime() / (15 * 60 * 1000)); 
-      const hash = Math.abs((timeBlock * 9301 + 49297) % 233280);
-      return hash.toString(36).substring(0, 4).toUpperCase();
-    }
-
-    function startTokenTimer() {
-      const updateToken = () => {
-        document.getElementById('current-token').innerText = getDynamicToken();
-      };
-      updateToken();
-      setInterval(updateToken, 10000); // Perbarui tampilan tiap 10 detik
-    }
-
-    function copyToken() {
-      const token = document.getElementById('current-token').innerText;
-      navigator.clipboard.writeText(token);
-      alert('Token ' + token + ' berhasil disalin!');
-    }
-
-    // 4. INTEGRASI PUBNUB REAL-TIME
-    function initPubNub() {
-      try {
-        const pubnub = new PubNub({
-          subscribeKey: PUBNUB_CONFIG.subscribeKey,
-          userId: "dashboard-proctor-" + Math.floor(Math.random() * 1000)
-        });
-
-        pubnub.subscribe({ channels: [PUBNUB_CONFIG.channel] });
-
-        pubnub.addListener({
-          message: function(event) {
-            if (event.message) {
-              renderLogData(event.message);
+        // Cek Sesi Login Saat Halaman Dimuat
+        window.onload = function() {
+            if (localStorage.getItem('cbt_logged_in') === 'true') {
+                showDashboard();
             }
-          },
-          status: function(s) {
-            if (s.category === "PNConnectedCategory") {
-              console.log("Terhubung ke PubNub Channel!");
+        };
+
+        // 2. MANAGEMENT LOGIN & LOGOUT
+        function handleLogin(e) {
+            e.preventDefault();
+            const userVal = document.getElementById('username-input').value.trim();
+            const passVal = document.getElementById('password-input').value.trim();
+
+            if (userVal === AUTH_CONFIG.username && passVal === AUTH_CONFIG.password) {
+                localStorage.setItem('cbt_logged_in', 'true');
+                document.getElementById('login-error').classList.add('hidden');
+                showDashboard();
+            } else {
+                document.getElementById('login-error').classList.remove('hidden');
             }
-          }
-        });
-      } catch (err) {
-        console.error("Gagal terhubung ke PubNub:", err);
-        document.getElementById('server-status').innerHTML = '<span class="text-red-400">Gagal Terhubung</span>';
-      }
-    }
+        }
 
-    // 5. RENDER DATA KE TABEL
-    function renderLogData(data) {
-      // Hapus pesan kosong
-      const emptyRow = document.getElementById('empty-row');
-      if (emptyRow) emptyRow.remove();
+        function handleLogout() {
+            localStorage.removeItem('cbt_logged_in');
+            if (pubnub) {
+                pubnub.unsubscribeAll();
+            }
+            location.reload();
+        }
 
-      logHistory.unshift(data);
-      uniqueStudentsSet.add(data.studentName);
+        function showDashboard() {
+            document.getElementById('login-section').classList.add('hidden');
+            document.getElementById('dashboard-section').classList.remove('hidden');
+            initPubNub();
+        }
 
-      // Update Cards
-      document.getElementById('total-violations').innerText = logHistory.length;
-      document.getElementById('unique-students').innerText = uniqueStudentsSet.size;
+        // 3. INISIALISASI & LISTENER PUBNUB
+        function initPubNub() {
+            if (pubnub) return; // Mencegah double inisialisasi
 
-      // Play Sound
-      try {
-        const audio = document.getElementById('alert-sound');
-        audio.currentTime = 0;
-        audio.play().catch(() => {});
-      } catch(e) {}
+            pubnub = new PubNub({
+                subscribeKey: PUBNUB_CONFIG.subscribeKey,
+                userId: "pengawas_dashboard_user"
+            });
 
-      // Insert Row
-      const tbody = document.getElementById('log-table-body');
-      const tr = document.createElement('tr');
-      tr.className = "hover:bg-slate-800/80 transition-colors flash-violation";
-      
-      tr.innerHTML = `
-        <td class="py-3 px-4 text-xs font-mono text-slate-400">${data.timestamp || new Date().toLocaleTimeString('id-ID')}</td>
-        <td class="py-3 px-4 font-semibold text-white">${data.studentName}</td>
-        <td class="py-3 px-4">
-          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
-            <i class="fa-solid fa-triangle-exclamation text-[10px]"></i> ${data.reason}
-          </span>
-        </td>
-        <td class="py-3 px-4 text-center">
-          <span class="inline-block px-2 py-0.5 rounded text-xs font-bold bg-amber-500/10 text-amber-400">
-            Ke-${data.count || 1}
-          </span>
-        </td>
-      `;
+            // Mendengarkan pesan real-time dari Moodle
+            pubnub.addListener({
+                message: function(event) {
+                    const data = event.message;
+                    addLogToTable(data);
+                }
+            });
 
-      tbody.insertBefore(tr, tbody.firstChild);
-    }
+            // Subskripsi ke channel
+            pubnub.subscribe({
+                channels: [PUBNUB_CONFIG.channel]
+            });
+        }
 
-    // 6. FILTER & EKSPOR
-    function filterLogs() {
-      const q = document.getElementById('search-input').value.toLowerCase();
-      const rows = document.querySelectorAll('#log-table-body tr');
-      rows.forEach(row => {
-        if (row.id === 'empty-row') return;
-        const text = row.innerText.toLowerCase();
-        row.style.display = text.includes(q) ? '' : 'none';
-      });
-    }
+        // 4. PEMBARUAN TAMPILAN TABEL & STATISTIK
+        function addLogToTable(data) {
+            // Bunyikan Suara Notifikasi
+            const alertAudio = document.getElementById('alert-sound');
+            if (alertAudio) {
+                alertAudio.currentTime = 0;
+                alertAudio.play().catch(e => console.log("Audio autoplay terblokir browser:", e));
+            }
 
-    function clearLogs() {
-      if (confirm('Bersihkan semua daftar pelanggaran?')) {
-        logHistory = [];
-        uniqueStudentsSet.clear();
-        document.getElementById('total-violations').innerText = '0';
-        document.getElementById('unique-students').innerText = '0';
-        document.getElementById('log-table-body').innerHTML = `
-          <tr id="empty-row">
-            <td colspan="4" class="py-12 text-center text-slate-500">
-              <i class="fa-solid fa-inbox text-3xl mb-2 block"></i>
-              Belum ada aktivitas pelanggaran yang terdeteksi.
-            </td>
-          </tr>`;
-      }
-    }
+            // Hapus baris kosong jika ada
+            const emptyRow = document.getElementById('empty-row');
+            if (emptyRow) emptyRow.remove();
 
-    function exportToCSV() {
-      if (logHistory.length === 0) {
-        alert('Tidak ada data untuk diekspor!');
-        return;
-      }
-      let csv = 'Waktu,Nama Siswa,Pelanggaran,Pelanggaran Ke\n';
-      logHistory.forEach(item => {
-        csv += `"${item.timestamp}","${item.studentName}","${item.reason}","${item.count}"\n`;
-      });
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = `Laporan_Pelanggaran_CBT_${new Date().toISOString().slice(0,10)}.csv`;
-      link.click();
-    }
+            // Tambah data ke statistik
+            logHistory.push(data);
+            if (data.studentName) {
+                uniqueStudentsSet.add(data.studentName);
+            }
 
-    // AUTO LOGIN CHECK
-    window.onload = function() {
-      if (localStorage.getItem('cbt_logged_in') === 'true') {
-        showDashboard();
-      }
-    };
-  </script>
+            document.getElementById('total-logs').textContent = logHistory.length;
+            document.getElementById('total-students').textContent = uniqueStudentsSet.size;
+
+            // Buat baris tabel baru
+            const tbody = document.getElementById('log-table-body');
+            const row = document.createElement('tr');
+            row.className = "hover:bg-gray-50 transition bg-yellow-50";
+
+            row.innerHTML = `
+                <td class="p-4 font-mono text-xs text-gray-500">${data.timestamp || new Date().toLocaleTimeString('id-ID')}</td>
+                <td class="p-4 font-semibold text-gray-900">${data.studentName || 'Anonim'}</td>
+                <td class="p-4"><span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-medium">${data.reason || 'Pelanggaran Detected'}</span></td>
+                <td class="p-4 text-center font-bold text-red-600">${data.count || 1}</td>
+            `;
+
+            // Sisipkan di baris paling atas
+            tbody.insertBefore(row, tbody.firstChild);
+
+            // Hilangkan efek highlight kuning setelah 2 detik
+            setTimeout(() => {
+                row.classList.remove('bg-yellow-50');
+            }, 2000);
+        }
+    </script>
 </body>
 </html>
