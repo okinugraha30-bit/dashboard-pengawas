@@ -110,6 +110,7 @@
     <script>
         const AUTH_CONFIG = { username: "113201", password: "cbt26" };
         const PUBNUB_CONFIG = {
+            publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87",
             subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659",
             channel: "cbt_monitoring_channel"
         };
@@ -173,6 +174,7 @@
             if (pubnub) return;
 
             pubnub = new PubNub({
+                publishKey: PUBNUB_CONFIG.publishKey,
                 subscribeKey: PUBNUB_CONFIG.subscribeKey,
                 userId: "dashboard_pengawas_" + Math.random().toString(36).substring(2, 7)
             });
