@@ -3,149 +3,178 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard Pengawas - Real-time CBT Monitor</title>
+  <title>Dashboard Pengawas CBT - Live Monitoring</title>
   
-  <!-- 1. Tailwind CSS CDN -->
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   
-  <!-- 2. FontAwesome Icon CDN -->
+  <!-- PubNub SDK -->
+  <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.2.min.js"></script>
+  
+  <!-- Font & Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
-  <!-- 3. Pusher Client JS Library -->
-  <script src="https://js.pusher.com/8.0/pusher.min.js"></script>
+  <style>
+    @keyframes pulse-red {
+      0%, 100% { background-color: rgba(239, 68, 68, 0.1); }
+      50% { background-color: rgba(239, 68, 68, 0.3); }
+    }
+    .flash-violation {
+      animation: pulse-red 1s ease-in-out 2;
+    }
+  </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between font-sans">
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col font-sans">
 
-  <!-- ========================================================================= -->
-  <!-- MODAL LOGIN PENGAWAS                                                      -->
-  <!-- ========================================================================= -->
-  <div id="login-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[99999] flex items-center justify-center p-4">
-    <div class="bg-slate-800 border border-slate-700 rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-6">
-      <div class="text-center space-y-2">
-        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-600/20 text-indigo-400 mb-2 border border-indigo-500/30">
-          <i class="fa-solid fa-user-shield text-3xl"></i>
+  <!-- ==================== HALAMAN LOGIN ==================== -->
+  <div id="login-section" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950 p-4">
+    <div class="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-2xl w-full max-w-md">
+      <div class="text-center mb-8">
+        <div class="inline-flex p-3 bg-blue-600/10 text-blue-500 rounded-xl mb-3">
+          <i class="fa-solid fa-shield-halved text-3xl"></i>
         </div>
-        <h2 class="text-2xl font-bold text-slate-100">Portal Login Pengawas</h2>
-        <p class="text-xs text-slate-400">Masukkan kredensial untuk mengakses Dashboard</p>
+        <h1 class="text-2xl font-bold text-white">Dashboard Pengawas</h1>
+        <p class="text-sm text-slate-400 mt-1">Masuk untuk memantau ujian real-time</p>
       </div>
 
       <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
         <div>
-          <label class="block text-xs font-medium text-slate-300 mb-1.5">Username</label>
-          <input type="text" id="username-input" required placeholder="pengawas" 
-                 class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-all">
+          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Username</label>
+          <input type="text" id="username-input" required 
+            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors"
+            placeholder="Masukkan username">
         </div>
 
         <div>
-          <label class="block text-xs font-medium text-slate-300 mb-1.5">Password</label>
-          <input type="password" id="password-input" required placeholder="••••••••" 
-                 class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-all">
+          <label class="block text-xs font-semibold uppercase text-slate-400 mb-1">Password</label>
+          <input type="password" id="password-input" required 
+            class="w-full bg-slate-800 border border-slate-700 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-blue-500 transition-colors"
+            placeholder="Masukkan password">
         </div>
 
-        <div id="login-error" class="hidden bg-red-950/50 border border-red-800/50 text-red-400 text-xs p-3 rounded-xl flex items-center space-x-2">
-          <i class="fa-solid fa-triangle-exclamation"></i>
-          <span>Username atau password salah!</span>
-        </div>
+        <p id="login-error" class="text-xs text-red-500 hidden text-center font-medium">Username atau Password salah!</p>
 
-        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl text-sm transition-all shadow-lg shadow-indigo-600/30 flex items-center justify-center space-x-2">
-          <span>Masuk Dashboard</span>
-          <i class="fa-solid fa-arrow-right text-xs"></i>
+        <button type="submit" 
+          class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg transition-colors shadow-lg shadow-blue-600/30">
+          Masuk ke Dashboard
         </button>
       </form>
     </div>
   </div>
 
-
-  <!-- ========================================================================= -->
-  <!-- HEADER DASHBOARD                                                          -->
-  <!-- ========================================================================= -->
-  <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 shadow-lg">
-    <div class="max-w-6xl mx-auto flex justify-between items-center">
-      <div class="flex items-center space-x-3">
-        <i class="fa-solid fa-shield-halved text-indigo-400 text-2xl"></i>
-        <div>
-          <h1 class="text-lg font-bold leading-tight">Dashboard Monitor Pengawas</h1>
-          <p class="text-xs text-slate-400">Sistem Deteksi Kecurangan Real-Time & Token Ujian</p>
-        </div>
-      </div>
-      
-      <div class="flex items-center space-x-6">
-        <div class="text-right hidden sm:block">
-          <div id="live-clock" class="text-xl font-mono font-bold text-indigo-400">00:00:00 WIB</div>
-        </div>
-        <button onclick="handleLogout()" class="bg-slate-700 hover:bg-red-600/80 text-slate-300 hover:text-white px-3.5 py-2 rounded-xl text-xs font-semibold transition-all">
-          Logout
-        </button>
-      </div>
-    </div>
-  </header>
-
-
-  <!-- ========================================================================= -->
-  <!-- KONTEN UTAMA (GRID 2 KOLOM)                                              -->
-  <!-- ========================================================================= -->
-  <main class="max-w-6xl w-full mx-auto p-6 flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6">
+  <!-- ==================== DASHBOARD UTAMA ==================== -->
+  <div id="dashboard-section" class="hidden flex-col flex-1">
     
-    <!-- KOLOM KIRI: GENERATOR TOKEN (1 KOLOM) -->
-    <div class="lg:col-span-1 space-y-6">
-      <div class="bg-slate-800 border border-slate-700 rounded-3xl p-6 shadow-xl text-center space-y-6">
-        
-        <div class="flex justify-between items-center bg-slate-900/60 border border-slate-700 px-4 py-2 rounded-xl">
-          <span class="text-xs text-emerald-400 font-medium flex items-center space-x-1.5">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>Pusher Online</span>
-          </span>
-          <span class="text-xs text-slate-400">Sisa: <strong id="countdown" class="font-mono text-amber-400">15:00</strong></span>
-        </div>
-
-        <div>
-          <p class="text-xs uppercase tracking-widest text-slate-400 font-semibold mb-2">Token Aktif (15 Mins)</p>
-          <div class="bg-indigo-950 border-2 border-indigo-500/50 rounded-2xl py-4 shadow-inner">
-            <span id="active-token" class="text-5xl font-mono font-black tracking-widest text-indigo-300">----</span>
+    <!-- Header -->
+    <header class="bg-slate-800 border-b border-slate-700/60 sticky top-0 z-30">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="p-2 bg-blue-500/10 text-blue-400 rounded-lg">
+            <i class="fa-solid fa-desktop text-xl"></i>
           </div>
-          <p class="text-[11px] text-slate-400 mt-2">Berikan token ini untuk membukakan layar siswa.</p>
+          <div>
+            <h1 class="text-lg font-bold text-white leading-tight">Monitoring Ujian CBT Real-Time</h1>
+            <p class="text-xs text-slate-400">Pantau aktivitas & deteksi kecurangan siswa secara langsung</p>
+          </div>
         </div>
 
-        <div class="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
-          <div id="progress-bar" class="bg-indigo-500 h-2 transition-all duration-1000" style="width: 100%;"></div>
+        <!-- Token Buka Kunci Box -->
+        <div class="flex items-center gap-3 bg-slate-900 border border-slate-700/80 px-4 py-2 rounded-xl">
+          <div>
+            <span class="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Token Buka Kunci (15 Min)</span>
+            <span id="current-token" class="text-xl font-mono font-bold text-amber-400 tracking-widest">----</span>
+          </div>
+          <button onclick="copyToken()" title="Salin Token" class="p-2 text-slate-400 hover:text-white transition-colors">
+            <i class="fa-regular fa-copy text-lg"></i>
+          </button>
         </div>
 
-        <div class="bg-slate-900/40 p-3 rounded-xl border border-slate-700/50 text-left">
-          <p class="text-xs text-slate-400 font-medium">Master Key Emergency:</p>
-          <code class="text-xs font-mono font-bold text-red-400">ADMIN99</code>
+        <!-- User Logout -->
+        <div class="flex items-center gap-3">
+          <span class="text-xs text-slate-300 font-medium">Pengawas Ujian</span>
+          <button onclick="handleLogout()" class="text-xs bg-red-500/10 hover:bg-red-500/20 text-red-400 px-3 py-1.5 rounded-lg transition-colors border border-red-500/20">
+            <i class="fa-solid fa-right-from-bracket mr-1"></i> Keluar
+          </button>
         </div>
-
       </div>
-    </div>
+    </header>
 
-    <!-- KOLOM KANAN: TABEL REPORT AKTIVITAS KECURANGAN (2 KOLOM) -->
-    <div class="lg:col-span-2 bg-slate-800 border border-slate-700 rounded-3xl p-6 shadow-xl flex flex-col justify-between">
-      <div>
-        <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
-          <div class="flex items-center space-x-2">
-            <i class="fa-solid fa-triangle-exclamation text-amber-400 text-lg"></i>
-            <h2 class="font-bold text-slate-200 text-base">Report Aktivitas Kecurangan</h2>
+    <!-- Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full flex-1">
+      
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <div class="bg-slate-800/60 border border-slate-700/50 p-4 rounded-xl flex items-center gap-4">
+          <div class="p-3 bg-red-500/10 text-red-400 rounded-lg text-xl">
+            <i class="fa-solid fa-triangle-exclamation"></i>
           </div>
-          <span id="total-violations" class="bg-red-500/20 text-red-400 text-xs px-3 py-1 rounded-full font-bold border border-red-500/30">
-            0 Pelanggaran
-          </span>
+          <div>
+            <span class="text-xs text-slate-400 uppercase font-semibold">Total Pelanggaran</span>
+            <p id="total-violations" class="text-2xl font-bold text-white">0</p>
+          </div>
         </div>
 
-        <!-- TABEL LAPORAN REAL-TIME -->
-        <div class="overflow-y-auto max-h-[380px] pr-1">
-          <table class="w-full text-left text-xs">
-            <thead class="bg-slate-900/80 text-slate-400 uppercase font-semibold sticky top-0">
+        <div class="bg-slate-800/60 border border-slate-700/50 p-4 rounded-xl flex items-center gap-4">
+          <div class="p-3 bg-amber-500/10 text-amber-400 rounded-lg text-xl">
+            <i class="fa-solid fa-users"></i>
+          </div>
+          <div>
+            <span class="text-xs text-slate-400 uppercase font-semibold">Siswa Melanggar</span>
+            <p id="unique-students" class="text-2xl font-bold text-white">0</p>
+          </div>
+        </div>
+
+        <div class="bg-slate-800/60 border border-slate-700/50 p-4 rounded-xl flex items-center gap-4">
+          <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg text-xl">
+            <i class="fa-solid fa-signal"></i>
+          </div>
+          <div>
+            <span class="text-xs text-slate-400 uppercase font-semibold">Status Server</span>
+            <p id="server-status" class="text-sm font-semibold text-emerald-400 flex items-center gap-1.5">
+              <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span> Terhubung (PubNub)
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Table Section -->
+      <div class="bg-slate-800/60 border border-slate-700/50 rounded-xl overflow-hidden shadow-xl">
+        
+        <!-- Controls -->
+        <div class="p-4 border-b border-slate-700/60 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div class="relative w-full sm:w-72">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+            <input type="text" id="search-input" oninput="filterLogs()" 
+              placeholder="Cari nama siswa atau pelanggaran..." 
+              class="w-full bg-slate-900 border border-slate-700 text-xs text-white pl-9 pr-4 py-2 rounded-lg focus:outline-none focus:border-blue-500">
+          </div>
+
+          <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <button onclick="clearLogs()" class="text-xs bg-slate-700 hover:bg-slate-600 text-slate-200 px-3 py-2 rounded-lg transition-colors">
+              <i class="fa-solid fa-trash-can mr-1"></i> Bersihkan Log
+            </button>
+            <button onclick="exportToCSV()" class="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg transition-colors font-medium">
+              <i class="fa-solid fa-file-excel mr-1"></i> Ekspor CSV
+            </button>
+          </div>
+        </div>
+
+        <!-- Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-300">
+            <thead class="bg-slate-900/80 text-xs font-semibold uppercase text-slate-400 border-b border-slate-700">
               <tr>
-                <th class="p-3 rounded-l-lg">Waktu</th>
-                <th class="p-3">Nama Siswa</th>
-                <th class="p-3">Aktivitas Terdeteksi</th>
-                <th class="p-3 text-center rounded-r-lg">Frekuensi</th>
+                <th class="py-3 px-4">Waktu</th>
+                <th class="py-3 px-4">Nama Siswa</th>
+                <th class="py-3 px-4">Detail Pelanggaran</th>
+                <th class="py-3 px-4 text-center">Jumlah Pelanggaran</th>
               </tr>
             </thead>
-            <tbody id="violation-log-table" class="divide-y divide-slate-700/50 text-slate-300">
-              <tr id="empty-log-row">
-                <td colspan="4" class="text-center py-12 text-slate-500 italic">
-                  Belum ada indikasi kecurangan terdeteksi dari siswa.
+            <tbody id="log-table-body" class="divide-y divide-slate-700/50">
+              <tr id="empty-row">
+                <td colspan="4" class="py-12 text-center text-slate-500">
+                  <i class="fa-solid fa-inbox text-3xl mb-2 block"></i>
+                  Belum ada aktivitas pelanggaran yang terdeteksi.
                 </td>
               </tr>
             </tbody>
@@ -153,156 +182,197 @@
         </div>
       </div>
 
-      <div class="mt-4 pt-3 border-t border-slate-700/60 flex justify-between items-center text-[11px] text-slate-500">
-        <span>Sistem akan berbunyi 'bip' otomatis jika ada siswa melanggar.</span>
-        <button onclick="clearLog()" class="text-slate-400 hover:text-slate-200 underline">Bersihkan Laporan</button>
-      </div>
-    </div>
+    </main>
+  </div>
 
-  </main>
+  <!-- Audio Beep untuk Notifikasi -->
+  <audio id="alert-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
 
-  <footer class="text-center py-4 border-t border-slate-800 text-xs text-slate-500">
-    CBT Security Controller &bull; Real-Time Proctoring System
-  </footer>
-
-
-  <!-- ========================================================================= -->
-  <!-- JAVASCRIPT ENGINE & PUSHER RECEIVER                                       -->
-  <!-- ========================================================================= -->
+  <!-- ==================== SCRIPT SIKLUS UTAMA ==================== -->
   <script>
-    // 1. CONFIG PUSHER SESUAI APP KEYS ANDA
-    const PUSHER_CONFIG = {
-      key: 'cb5ab7ef70af8ca8fad5', 
-      cluster: 'ap1'
-    };
-
-    // Akun Login Pengawas
+    // 1. CONFIG AUTH & PUBNUB
     const AUTH_CONFIG = {
       username: "pengawas",
       password: "cbtproctor2026"
     };
 
-    // Auto Check Session Login
-    document.addEventListener("DOMContentLoaded", () => {
-      if (sessionStorage.getItem("proctor_logged_in") === "true") {
-        document.getElementById("login-modal").classList.add("hidden");
-      }
-    });
+    const PUBNUB_CONFIG = {
+      subscribeKey: "sub-c-5ebc26d7-e2a2-4a0b-9ccb-14fddbdfec88", // Ganti dengan Subscribe Key PubNub Anda jika beda
+      channel: "cbt_monitoring_channel"
+    };
 
+    let logHistory = [];
+    let uniqueStudentsSet = new Set();
+
+    // 2. MANAGEMENT LOGIN & LOGOUT
     function handleLogin(e) {
       e.preventDefault();
-      if (document.getElementById("username-input").value.trim() === AUTH_CONFIG.username && 
-          document.getElementById("password-input").value.trim() === AUTH_CONFIG.password) {
-        sessionStorage.setItem("proctor_logged_in", "true");
-        document.getElementById("login-modal").classList.add("hidden");
+      const userVal = document.getElementById('username-input').value.trim();
+      const passVal = document.getElementById('password-input').value.trim();
+
+      if (userVal === AUTH_CONFIG.username && passVal === AUTH_CONFIG.password) {
+        localStorage.setItem('cbt_logged_in', 'true');
+        showDashboard();
       } else {
-        document.getElementById("login-error").classList.remove("hidden");
+        document.getElementById('login-error').classList.remove('hidden');
       }
     }
 
     function handleLogout() {
-      sessionStorage.removeItem("proctor_logged_in");
-      document.getElementById("login-modal").classList.remove("hidden");
+      localStorage.removeItem('cbt_logged_in');
+      location.reload();
     }
 
-    // 2. LOGIKA TOKEN DYNAMIS (SINKRON 15 MENIT)
-    function getDynamicToken(timeBlock) {
+    function showDashboard() {
+      document.getElementById('login-section').classList.add('hidden');
+      document.getElementById('dashboard-section').classList.remove('hidden');
+      document.getElementById('dashboard-section').classList.add('flex');
+      initPubNub();
+      startTokenTimer();
+    }
+
+    // 3. GENERATE TOKEN DINAMIS (KODE TOKEN LOKAL)
+    function getDynamicToken() {
+      const now = new Date();
+      const timeBlock = Math.floor(now.getTime() / (15 * 60 * 1000)); 
       const hash = Math.abs((timeBlock * 9301 + 49297) % 233280);
       return hash.toString(36).substring(0, 4).toUpperCase();
     }
 
-    function updateDashboard() {
-      const now = new Date();
-      document.getElementById('live-clock').innerText = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')} WIB`;
-
-      const currentTimeMs = now.getTime();
-      const intervalMs = 15 * 60 * 1000;
-      const currentBlock = Math.floor(currentTimeMs / intervalMs);
-
-      document.getElementById('active-token').innerText = getDynamicToken(currentBlock);
-
-      const msRemaining = intervalMs - (currentTimeMs % intervalMs);
-      const totalSecsRemaining = Math.floor(msRemaining / 1000);
-      document.getElementById('countdown').innerText = `${String(Math.floor(totalSecsRemaining / 60)).padStart(2, '0')}:${String(totalSecsRemaining % 60).padStart(2, '0')}`;
-      document.getElementById('progress-bar').style.width = `${(msRemaining / intervalMs) * 100}%`;
+    function startTokenTimer() {
+      const updateToken = () => {
+        document.getElementById('current-token').innerText = getDynamicToken();
+      };
+      updateToken();
+      setInterval(updateToken, 10000); // Perbarui tampilan tiap 10 detik
     }
-    setInterval(updateDashboard, 1000);
-    updateDashboard();
 
-    // 3. EFEK SUARA ALARM BIP
-    function playBeepSound() {
+    function copyToken() {
+      const token = document.getElementById('current-token').innerText;
+      navigator.clipboard.writeText(token);
+      alert('Token ' + token + ' berhasil disalin!');
+    }
+
+    // 4. INTEGRASI PUBNUB REAL-TIME
+    function initPubNub() {
       try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-        osc.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.15);
-      } catch(e) {}
+        const pubnub = new PubNub({
+          subscribeKey: PUBNUB_CONFIG.subscribeKey,
+          userId: "dashboard-proctor-" + Math.floor(Math.random() * 1000)
+        });
+
+        pubnub.subscribe({ channels: [PUBNUB_CONFIG.channel] });
+
+        pubnub.addListener({
+          message: function(event) {
+            if (event.message) {
+              renderLogData(event.message);
+            }
+          },
+          status: function(s) {
+            if (s.category === "PNConnectedCategory") {
+              console.log("Terhubung ke PubNub Channel!");
+            }
+          }
+        });
+      } catch (err) {
+        console.error("Gagal terhubung ke PubNub:", err);
+        document.getElementById('server-status').innerHTML = '<span class="text-red-400">Gagal Terhubung</span>';
+      }
     }
 
-    // 4. PENERIMA SINYAL PELANGGARAN
-    let totalViolationCounter = 0;
-
+    // 5. RENDER DATA KE TABEL
     function renderLogData(data) {
-      const emptyRow = document.getElementById('empty-log-row');
+      // Hapus pesan kosong
+      const emptyRow = document.getElementById('empty-row');
       if (emptyRow) emptyRow.remove();
 
-      totalViolationCounter++;
-      document.getElementById('total-violations').innerText = `${totalViolationCounter} Pelanggaran`;
+      logHistory.unshift(data);
+      uniqueStudentsSet.add(data.studentName);
 
-      const tableBody = document.getElementById('violation-log-table');
-      const newRow = document.createElement('tr');
-      newRow.className = "hover:bg-slate-700/30 transition-all border-b border-slate-700/40 bg-red-950/20 animate-pulse";
+      // Update Cards
+      document.getElementById('total-violations').innerText = logHistory.length;
+      document.getElementById('unique-students').innerText = uniqueStudentsSet.size;
+
+      // Play Sound
+      try {
+        const audio = document.getElementById('alert-sound');
+        audio.currentTime = 0;
+        audio.play().catch(() => {});
+      } catch(e) {}
+
+      // Insert Row
+      const tbody = document.getElementById('log-table-body');
+      const tr = document.createElement('tr');
+      tr.className = "hover:bg-slate-800/80 transition-colors flash-violation";
       
-      newRow.innerHTML = `
-        <td class="p-3 font-mono text-slate-400">${data.timestamp || new Date().toLocaleTimeString('id-ID')}</td>
-        <td class="p-3 font-semibold text-amber-300">${data.studentName || 'Siswa'}</td>
-        <td class="p-3 text-red-400 flex items-center space-x-1.5">
-          <i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
-          <span>${data.reason || 'Kecurangan Terdeteksi'}</span>
+      tr.innerHTML = `
+        <td class="py-3 px-4 text-xs font-mono text-slate-400">${data.timestamp || new Date().toLocaleTimeString('id-ID')}</td>
+        <td class="py-3 px-4 font-semibold text-white">${data.studentName}</td>
+        <td class="py-3 px-4">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-red-500/10 text-red-400 border border-red-500/20">
+            <i class="fa-solid fa-triangle-exclamation text-[10px]"></i> ${data.reason}
+          </span>
         </td>
-        <td class="p-3 text-center font-bold">
-          <span class="bg-red-950 text-red-400 border border-red-800/60 px-2 py-0.5 rounded-md text-[10px]">
-            ${data.count || 1}x
+        <td class="py-3 px-4 text-center">
+          <span class="inline-block px-2 py-0.5 rounded text-xs font-bold bg-amber-500/10 text-amber-400">
+            Ke-${data.count || 1}
           </span>
         </td>
       `;
 
-      tableBody.insertBefore(newRow, tableBody.firstChild);
-      playBeepSound();
+      tbody.insertBefore(tr, tbody.firstChild);
     }
 
-  // CONFIG PUBNUB
-const pubnub = new PubNub({
-  subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659", // Masukkan Sub Key PubNub Anda
-  userId: "dashboard-proctor-client"
-});
-
-// Dengarkan Channel Ujian
-pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
-
-pubnub.addListener({
-  message: function(event) {
-    if (event.message) {
-      renderLogData(event.message); // Menampilkan langsung ke Tabel Dashboard!
+    // 6. FILTER & EKSPOR
+    function filterLogs() {
+      const q = document.getElementById('search-input').value.toLowerCase();
+      const rows = document.querySelectorAll('#log-table-body tr');
+      rows.forEach(row => {
+        if (row.id === 'empty-row') return;
+        const text = row.innerText.toLowerCase();
+        row.style.display = text.includes(q) ? '' : 'none';
+      });
     }
-  }
-});
-  
-  // Menerima Event Dari Siswa
-  channel.bind('client-violation-event', function(data) {
-    renderLogData(data);
-  });
-} catch(e) { 
-  console.error('Pusher Connection Error:', e); 
-}
-    function clearLog() {
-      document.getElementById('violation-log-table').innerHTML = `<tr id="empty-log-row"><td colspan="4" class="text-center py-12 text-slate-500 italic">Belum ada indikasi kecurangan terdeteksi dari siswa.</td></tr>`;
-      totalViolationCounter = 0;
-      document.getElementById('total-violations').innerText = `0 Pelanggaran`;
+
+    function clearLogs() {
+      if (confirm('Bersihkan semua daftar pelanggaran?')) {
+        logHistory = [];
+        uniqueStudentsSet.clear();
+        document.getElementById('total-violations').innerText = '0';
+        document.getElementById('unique-students').innerText = '0';
+        document.getElementById('log-table-body').innerHTML = `
+          <tr id="empty-row">
+            <td colspan="4" class="py-12 text-center text-slate-500">
+              <i class="fa-solid fa-inbox text-3xl mb-2 block"></i>
+              Belum ada aktivitas pelanggaran yang terdeteksi.
+            </td>
+          </tr>`;
+      }
     }
+
+    function exportToCSV() {
+      if (logHistory.length === 0) {
+        alert('Tidak ada data untuk diekspor!');
+        return;
+      }
+      let csv = 'Waktu,Nama Siswa,Pelanggaran,Pelanggaran Ke\n';
+      logHistory.forEach(item => {
+        csv += `"${item.timestamp}","${item.studentName}","${item.reason}","${item.count}"\n`;
+      });
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `Laporan_Pelanggaran_CBT_${new Date().toISOString().slice(0,10)}.csv`;
+      link.click();
+    }
+
+    // AUTO LOGIN CHECK
+    window.onload = function() {
+      if (localStorage.getItem('cbt_logged_in') === 'true') {
+        showDashboard();
+      }
+    };
   </script>
 </body>
 </html>
