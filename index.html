@@ -274,23 +274,23 @@
       playBeepSound();
     }
 
-    // CONNECT KE PUSHER REAL-TIME CHANNEL
-    try {
-      const pusher = new Pusher(PUSHER_CONFIG.key, { 
-        cluster: PUSHER_CONFIG.cluster,
-        forceTLS: true
-      });
-      
-      const channel = pusher.subscribe('cbt-channel');
-      
-      // Menerima Event Dari Siswa
-      channel.bind('client-violation-event', function(data) {
-        renderLogData(data);
-      });
-    } catch(e) { 
-      console.error('Pusher Connection Error:', e); 
-    }
-
+   // CONNECT KE PUSHER REAL-TIME CHANNEL
+try {
+  const pusher = new Pusher(PUSHER_CONFIG.key, { 
+    cluster: PUSHER_CONFIG.cluster,
+    forceTLS: true
+  });
+  
+  // DENGARKAN PRIVATE CHANNEL YANG SAMA
+  const channel = pusher.subscribe('private-cbt-channel');
+  
+  // Menerima Event Dari Siswa
+  channel.bind('client-violation-event', function(data) {
+    renderLogData(data);
+  });
+} catch(e) { 
+  console.error('Pusher Connection Error:', e); 
+}
     function clearLog() {
       document.getElementById('violation-log-table').innerHTML = `<tr id="empty-log-row"><td colspan="4" class="text-center py-12 text-slate-500 italic">Belum ada indikasi kecurangan terdeteksi dari siswa.</td></tr>`;
       totalViolationCounter = 0;
