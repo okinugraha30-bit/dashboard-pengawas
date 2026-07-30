@@ -3,18 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard Pengawas - Monitoring & Security CBT</title>
-  <!-- Tailwind CSS CDN -->
+  <title>Dashboard Pengawas - Real-time CBT Monitor</title>
+  
+  <!-- 1. Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- FontAwesome Icon -->
+  
+  <!-- 2. FontAwesome Icon CDN -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <!-- Pusher JS (Menghubungkan Moodle & Dashboard Beda Domain) -->
+  
+  <!-- 3. Pusher Client JS Library -->
   <script src="https://js.pusher.com/8.0/pusher.min.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between font-sans">
 
   <!-- ========================================================================= -->
-  <!-- 1. MODAL LOGIN PENGAWAS                                                   -->
+  <!-- MODAL LOGIN PENGAWAS                                                      -->
   <!-- ========================================================================= -->
   <div id="login-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-[99999] flex items-center justify-center p-4">
     <div class="bg-slate-800 border border-slate-700 rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-6">
@@ -23,12 +26,12 @@
           <i class="fa-solid fa-user-shield text-3xl"></i>
         </div>
         <h2 class="text-2xl font-bold text-slate-100">Portal Login Pengawas</h2>
-        <p class="text-xs text-slate-400">Masukkan kredensial khusus untuk mengakses Dashboard</p>
+        <p class="text-xs text-slate-400">Masukkan kredensial untuk mengakses Dashboard</p>
       </div>
 
       <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
         <div>
-          <label class="block text-xs font-medium text-slate-300 mb-1.5">Username Pengawas</label>
+          <label class="block text-xs font-medium text-slate-300 mb-1.5">Username</label>
           <input type="text" id="username-input" required placeholder="pengawas" 
                  class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-all">
         </div>
@@ -54,7 +57,7 @@
 
 
   <!-- ========================================================================= -->
-  <!-- 2. HEADER DASHBOARD                                                       -->
+  <!-- HEADER DASHBOARD                                                          -->
   <!-- ========================================================================= -->
   <header class="bg-slate-800 border-b border-slate-700 px-6 py-4 shadow-lg">
     <div class="max-w-6xl mx-auto flex justify-between items-center">
@@ -79,7 +82,7 @@
 
 
   <!-- ========================================================================= -->
-  <!-- 3. KONTEN UTAMA (GRID 2 KOLOM)                                           -->
+  <!-- KONTEN UTAMA (GRID 2 KOLOM)                                              -->
   <!-- ========================================================================= -->
   <main class="max-w-6xl w-full mx-auto p-6 flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6">
     
@@ -90,7 +93,7 @@
         <div class="flex justify-between items-center bg-slate-900/60 border border-slate-700 px-4 py-2 rounded-xl">
           <span class="text-xs text-emerald-400 font-medium flex items-center space-x-1.5">
             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>Koneksi Pusher Active</span>
+            <span>Pusher Online</span>
           </span>
           <span class="text-xs text-slate-400">Sisa: <strong id="countdown" class="font-mono text-amber-400">15:00</strong></span>
         </div>
@@ -128,7 +131,7 @@
           </span>
         </div>
 
-        <!-- TABEL REPORT REAL-TIME -->
+        <!-- TABEL LAPORAN REAL-TIME -->
         <div class="overflow-y-auto max-h-[380px] pr-1">
           <table class="w-full text-left text-xs">
             <thead class="bg-slate-900/80 text-slate-400 uppercase font-semibold sticky top-0">
@@ -141,8 +144,8 @@
             </thead>
             <tbody id="violation-log-table" class="divide-y divide-slate-700/50 text-slate-300">
               <tr id="empty-log-row">
-                <td colspan="4" class="text-center py-10 text-slate-500 italic">
-                  Belum ada indikasi kecurangan yang terdeteksi dari siswa.
+                <td colspan="4" class="text-center py-12 text-slate-500 italic">
+                  Belum ada indikasi kecurangan terdeteksi dari siswa.
                 </td>
               </tr>
             </tbody>
@@ -164,18 +167,22 @@
 
 
   <!-- ========================================================================= -->
-  <!-- 4. LOGIKA JAVASCRIPT REAL-TIME & PUSHER RECEIVER                          -->
+  <!-- JAVASCRIPT ENGINE & PUSHER RECEIVER                                       -->
   <!-- ========================================================================= -->
- <!-- LOGIKA JAVASCRIPT & PUSHER RECEIVER -->
   <script>
-    // 1. CONFIG PUSHER & AUTH
+    // 1. CONFIG PUSHER SESUAI APP KEYS ANDA
     const PUSHER_CONFIG = {
-      key: 'cb5ab7ef70af8ca8fad5',
+      key: 'cb5ab7ef70af8ca8fad5', 
       cluster: 'ap1'
     };
 
-    const AUTH_CONFIG = { username: "pengawas", password: "cbtproctor2026" };
+    // Akun Login Pengawas
+    const AUTH_CONFIG = {
+      username: "pengawas",
+      password: "cbtproctor2026"
+    };
 
+    // Auto Check Session Login
     document.addEventListener("DOMContentLoaded", () => {
       if (sessionStorage.getItem("proctor_logged_in") === "true") {
         document.getElementById("login-modal").classList.add("hidden");
@@ -198,7 +205,7 @@
       document.getElementById("login-modal").classList.remove("hidden");
     }
 
-    // 2. GENERATOR TOKEN 15 MENIT
+    // 2. LOGIKA TOKEN DYNAMIS (SINKRON 15 MENIT)
     function getDynamicToken(timeBlock) {
       const hash = Math.abs((timeBlock * 9301 + 49297) % 233280);
       return hash.toString(36).substring(0, 4).toUpperCase();
@@ -222,7 +229,7 @@
     setInterval(updateDashboard, 1000);
     updateDashboard();
 
-    // 3. SUARA ALARM BIP
+    // 3. EFEK SUARA ALARM BIP
     function playBeepSound() {
       try {
         const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -235,7 +242,7 @@
       } catch(e) {}
     }
 
-    // 4. PENERIMA LOG PELANGGARAN REAL-TIME DARI MOODLE
+    // 4. PENERIMA SINYAL PELANGGARAN
     let totalViolationCounter = 0;
 
     function renderLogData(data) {
@@ -247,18 +254,18 @@
 
       const tableBody = document.getElementById('violation-log-table');
       const newRow = document.createElement('tr');
-      newRow.className = "hover:bg-slate-700/30 transition-all border-b border-slate-700/40 bg-red-950/10";
+      newRow.className = "hover:bg-slate-700/30 transition-all border-b border-slate-700/40 bg-red-950/20 animate-pulse";
       
       newRow.innerHTML = `
-        <td class="p-3 font-mono text-slate-400">${data.timestamp}</td>
-        <td class="p-3 font-semibold text-amber-300">${data.studentName}</td>
+        <td class="p-3 font-mono text-slate-400">${data.timestamp || new Date().toLocaleTimeString('id-ID')}</td>
+        <td class="p-3 font-semibold text-amber-300">${data.studentName || 'Siswa'}</td>
         <td class="p-3 text-red-400 flex items-center space-x-1.5">
           <i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
-          <span>${data.reason}</span>
+          <span>${data.reason || 'Kecurangan Terdeteksi'}</span>
         </td>
         <td class="p-3 text-center font-bold">
           <span class="bg-red-950 text-red-400 border border-red-800/60 px-2 py-0.5 rounded-md text-[10px]">
-            ${data.count}x
+            ${data.count || 1}x
           </span>
         </td>
       `;
@@ -267,114 +274,25 @@
       playBeepSound();
     }
 
-    // MENDENGARKAN EVENT PUSHER DARI SISWA
+    // CONNECT KE PUSHER REAL-TIME CHANNEL
     try {
       const pusher = new Pusher(PUSHER_CONFIG.key, { 
         cluster: PUSHER_CONFIG.cluster,
-        forceTLS: true 
+        forceTLS: true
       });
       
       const channel = pusher.subscribe('cbt-channel');
       
-      // Mendengarkan event berawalan client-
+      // Menerima Event Dari Siswa
       channel.bind('client-violation-event', function(data) {
         renderLogData(data);
       });
-    } catch(e) { console.log('Error Pusher Listener:', e); }
+    } catch(e) { 
+      console.error('Pusher Connection Error:', e); 
+    }
 
     function clearLog() {
-      document.getElementById('violation-log-table').innerHTML = `<tr id="empty-log-row"><td colspan="4" class="text-center py-10 text-slate-500 italic">Belum ada indikasi kecurangan yang terdeteksi dari siswa.</td></tr>`;
-      totalViolationCounter = 0;
-      document.getElementById('total-violations').innerText = `0 Pelanggaran`;
-    }
-  </script>
-
-    // B. LOGIKA TOKEN 15 MENIT
-    function getDynamicToken(timeBlock) {
-      const hash = Math.abs((timeBlock * 9301 + 49297) % 233280);
-      return hash.toString(36).substring(0, 4).toUpperCase();
-    }
-
-    function updateDashboard() {
-      const now = new Date();
-      document.getElementById('live-clock').innerText = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')} WIB`;
-
-      const currentTimeMs = now.getTime();
-      const intervalMs = 15 * 60 * 1000;
-      const currentBlock = Math.floor(currentTimeMs / intervalMs);
-
-      document.getElementById('active-token').innerText = getDynamicToken(currentBlock);
-
-      const msRemaining = intervalMs - (currentTimeMs % intervalMs);
-      const totalSecsRemaining = Math.floor(msRemaining / 1000);
-      document.getElementById('countdown').innerText = `${String(Math.floor(totalSecsRemaining / 60)).padStart(2, '0')}:${String(totalSecsRemaining % 60).padStart(2, '0')}`;
-      document.getElementById('progress-bar').style.width = `${(msRemaining / intervalMs) * 100}%`;
-    }
-    setInterval(updateDashboard, 1000);
-    updateDashboard();
-
-    // C. SUARA ALARM BIP SAAT ADA PELANGGARAN
-    function playBeepSound() {
-      try {
-        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = audioCtx.createOscillator();
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
-        osc.connect(audioCtx.destination);
-        osc.start();
-        osc.stop(audioCtx.currentTime + 0.15);
-      } catch(e) {}
-    }
-
-    // D. PENERIMAAN LAPORAN KECURANGAN VIA PUSHER / BROADCASTCHANNEL
-    let totalViolationCounter = 0;
-
-    function renderLogData(data) {
-      const emptyRow = document.getElementById('empty-log-row');
-      if (emptyRow) emptyRow.remove();
-
-      totalViolationCounter++;
-      document.getElementById('total-violations').innerText = `${totalViolationCounter} Pelanggaran`;
-
-      const tableBody = document.getElementById('violation-log-table');
-      const newRow = document.createElement('tr');
-      newRow.className = "hover:bg-slate-700/30 transition-all border-b border-slate-700/40 bg-red-950/10";
-      
-      newRow.innerHTML = `
-        <td class="p-3 font-mono text-slate-400">${data.timestamp}</td>
-        <td class="p-3 font-semibold text-amber-300">${data.studentName}</td>
-        <td class="p-3 text-red-400 flex items-center space-x-1.5">
-          <i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
-          <span>${data.reason}</span>
-        </td>
-        <td class="p-3 text-center font-bold">
-          <span class="bg-red-950 text-red-400 border border-red-800/60 px-2 py-0.5 rounded-md text-[10px]">
-            ${data.count}x
-          </span>
-        </td>
-      `;
-
-      tableBody.insertBefore(newRow, tableBody.firstChild);
-      playBeepSound();
-    }
-
-    // Connect Ke Pusher
-    try {
-      const pusher = new Pusher(PUSHER_CONFIG.key, { cluster: PUSHER_CONFIG.cluster });
-      const channel = pusher.subscribe('cbt-channel');
-      channel.bind('violation-event', function(data) {
-        renderLogData(data);
-      });
-    } catch(e) { console.log('Pusher fallback active'); }
-
-    // Fallback Local Channel
-    const localChannel = new BroadcastChannel('cbt_proctor_channel');
-    localChannel.onmessage = function(e) {
-      if(e.data && e.data.type === 'VIOLATION_LOG') renderLogData(e.data);
-    };
-
-    function clearLog() {
-      document.getElementById('violation-log-table').innerHTML = `<tr id="empty-log-row"><td colspan="4" class="text-center py-10 text-slate-500 italic">Belum ada indikasi kecurangan yang terdeteksi dari siswa.</td></tr>`;
+      document.getElementById('violation-log-table').innerHTML = `<tr id="empty-log-row"><td colspan="4" class="text-center py-12 text-slate-500 italic">Belum ada indikasi kecurangan terdeteksi dari siswa.</td></tr>`;
       totalViolationCounter = 0;
       document.getElementById('total-violations').innerText = `0 Pelanggaran`;
     }
