@@ -3,21 +3,20 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard Monitoring CBT Moodle</title>
-  <!-- Tailwind CSS & PubNub SDK -->
+  <title>Dashboard Pengawas CBT - TOTP 3 Menit</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
 </head>
 <body class="bg-slate-100 min-h-screen p-6 font-sans">
 
   <div class="max-w-6xl mx-auto">
-    <!-- HEADER DASHBOARD -->
+    <!-- HEADER -->
     <div class="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6 gap-4">
       <div>
         <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
-          🛡️ Dashboard Pengawas CBT Moodle
+          🛡️ Dashboard Monitoring CBT Moodle
         </h1>
-        <p class="text-slate-500 text-sm mt-1">Sistem pemantauan pelanggaran & kontrol PIN pengawas terpusat.</p>
+        <p class="text-slate-500 text-sm mt-1">Sistem Pemantauan Pelanggaran & Token TOTP Otomatis (3 Menit).</p>
       </div>
       <div class="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-lg border border-emerald-200 font-medium text-sm">
         <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -25,32 +24,45 @@
       </div>
     </div>
 
-    <!-- PANEL KONTROL PIN PENGAWAS -->
-    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6">
-      <h2 class="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
-        🔑 Kontrol PIN Buka Kunci Layar Siswa
-      </h2>
-      <p class="text-slate-500 text-sm mb-4">Ubah PIN di bawah ini. PIN baru akan otomatis terkirim dan berlaku di seluruh perangkat siswa secara langsung.</p>
+    <!-- CARDS SUMMARY & TOTP TOKEN -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
       
-      <div class="flex flex-wrap items-center gap-3">
-        <input type="text" id="pinInput" value="1234" maxlength="10" class="bg-slate-50 border border-slate-300 text-slate-800 font-bold text-center text-lg rounded-lg px-4 py-2 w-36 focus:outline-none focus:ring-2 focus:ring-blue-500">
-        <button onclick="updatePin()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-lg transition duration-200 shadow-sm">
-          Update PIN ke Semua Siswa
-        </button>
-        <span id="pinAlert" class="text-emerald-600 font-medium text-sm hidden transition-opacity duration-300">
-          ✓ PIN Berhasil Diperbarui & Ditransfer!
-        </span>
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <p class="text-slate-500 text-sm font-medium">Total Kejadian Pelanggaran</p>
+        <h3 id="totalViolations" class="text-4xl font-bold text-slate-800 mt-2">0</h3>
       </div>
+
+      <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+        <p class="text-slate-500 text-sm font-medium">Siswa Terindikasi Melanggar</p>
+        <h3 id="uniqueStudents" class="text-4xl font-bold text-red-600 mt-2">0</h3>
+      </div>
+
+      <!-- KOTAK TOKEN TOTP 3 MENIT -->
+      <div class="bg-gradient-to-br from-blue-900 to-indigo-900 p-6 rounded-xl shadow-md text-white flex flex-col justify-between relative overflow-hidden">
+        <div>
+          <span class="text-xs font-semibold bg-blue-500/30 text-blue-200 px-2.5 py-1 rounded-md tracking-wider uppercase">
+            🔑 Token Buka Kunci (3 Menit)
+          </span>
+          <h2 id="totpToken" class="text-4xl font-mono font-bold text-yellow-400 mt-3 tracking-widest">
+            ------
+          </h2>
+        </div>
+        <div class="mt-4 flex justify-between items-center text-xs text-blue-200 border-t border-blue-700/50 pt-2">
+          <span>Ganti otomatis dalam:</span>
+          <span id="countdownText" class="font-bold text-white font-mono text-sm">180s</span>
+        </div>
+      </div>
+
     </div>
 
-    <!-- TABEL LOG PELANGGARAN REAL-TIME -->
+    <!-- TABEL LOG PELANGGARAN -->
     <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
       <div class="p-6 border-b border-slate-200 flex justify-between items-center">
         <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-          🚨 Log Pelanggaran Siswa
+          🚨 Log Pelanggaran Siswa Real-Time
         </h2>
         <button onclick="clearLogs()" class="text-xs text-slate-500 hover:text-red-600 font-medium underline">
-          Bersihkan Tabel Log
+          Bersihkan Log
         </button>
       </div>
 
@@ -60,14 +72,14 @@
             <tr class="bg-slate-50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200">
               <th class="p-4">Waktu</th>
               <th class="p-4">Nama Siswa</th>
-              <th class="p-4">Ruangan / Kelas</th>
-              <th class="p-4">Alasan Pelanggaran</th>
+              <th class="p-4">Ruangan</th>
+              <th class="p-4">Jenis Pelanggaran</th>
               <th class="p-4 text-center">Jumlah Pelanggaran</th>
             </tr>
           </thead>
           <tbody id="violationLogs" class="divide-y divide-slate-100 text-sm text-slate-700">
             <tr id="emptyRow">
-              <td colspan="5" class="p-8 text-center text-slate-400">Belum ada pelanggaran yang terdeteksi. Pemantauan berjalan...</td>
+              <td colspan="5" class="p-8 text-center text-slate-400">Belum ada aktivitas pelanggaran terdeteksi.</td>
             </tr>
           </tbody>
         </table>
@@ -76,7 +88,40 @@
   </div>
 
   <script>
-    // Inisialisasi PubNub di Dashboard Pengawas
+    const SECRET_SALT = "CBT_SECRET_KEY_2026";
+    let totalCount = 0;
+    const studentSet = new Set();
+
+    // FUNGSI ALGORITMA GENERATE TOTP 3 MENIT
+    function generateTOTP3Min() {
+      const epochSec = Math.floor(Date.now() / 1000);
+      const timeStep = Math.floor(epochSec / 180); // 180 detik
+      
+      let hash = 0;
+      const str = SECRET_SALT + timeStep;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) - hash) + str.charCodeAt(i);
+        hash |= 0;
+      }
+      
+      const code = Math.abs(hash % 900000) + 100000;
+      return code.toString();
+    }
+
+    // UPDATE HITUNG MUNDUR & TOKEN TOTP
+    function updateTOTPDisplay() {
+      const token = generateTOTP3Min();
+      document.getElementById('totpToken').innerText = token;
+
+      const epochSec = Math.floor(Date.now() / 1000);
+      const remainingSec = 180 - (epochSec % 180);
+      document.getElementById('countdownText').innerText = remainingSec + "s";
+    }
+
+    setInterval(updateTOTPDisplay, 1000);
+    updateTOTPDisplay();
+
+    // PUBNUB REALTIME MONITORING
     const pubnub = new PubNub({
       publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87",
       subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659",
@@ -85,7 +130,6 @@
 
     pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
 
-    // Mendengarkan Pesan Pelanggaran Masuk
     pubnub.addListener({
       message: function(event) {
         const msg = event.message;
@@ -95,33 +139,15 @@
       }
     });
 
-    // Fungsi Mengirimkan PIN Baru ke Semua Perangkat Siswa
-    function updatePin() {
-      const pinVal = document.getElementById('pinInput').value.trim();
-      if (!pinVal) {
-        alert("PIN tidak boleh kosong!");
-        return;
-      }
-
-      pubnub.publish({
-        channel: "cbt_monitoring_channel",
-        message: {
-          type: "UPDATE_PIN",
-          newPin: pinVal
-        }
-      }, function(status) {
-        if (!status.error) {
-          const alertEl = document.getElementById('pinAlert');
-          alertEl.classList.remove('hidden');
-          setTimeout(() => alertEl.classList.add('hidden'), 3000);
-        }
-      });
-    }
-
-    // Fungsi Menambahkan Baris Log Baru di Tabel
     function addLogToTable(data) {
       const emptyRow = document.getElementById('emptyRow');
       if (emptyRow) emptyRow.remove();
+
+      totalCount++;
+      studentSet.add(data.studentName);
+
+      document.getElementById('totalViolations').innerText = totalCount;
+      document.getElementById('uniqueStudents').innerText = studentSet.size;
 
       const tbody = document.getElementById('violationLogs');
       const tr = document.createElement('tr');
@@ -145,10 +171,15 @@
     }
 
     function clearLogs() {
+      totalCount = 0;
+      studentSet.clear();
+      document.getElementById('totalViolations').innerText = "0";
+      document.getElementById('uniqueStudents').innerText = "0";
+      
       const tbody = document.getElementById('violationLogs');
       tbody.innerHTML = `
         <tr id="emptyRow">
-          <td colspan="5" class="p-8 text-center text-slate-400">Belum ada pelanggaran yang terdeteksi. Pemantauan berjalan...</td>
+          <td colspan="5" class="p-8 text-center text-slate-400">Belum ada aktivitas pelanggaran terdeteksi.</td>
         </tr>
       `;
     }
