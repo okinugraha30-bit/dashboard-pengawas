@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- PubNub SDK Terbaru -->
     <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
+    <!-- SheetJS CDN untuk Ekspor ke Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body class="bg-gray-100 text-gray-800 font-sans antialiased">
 
@@ -72,9 +74,17 @@
             </div>
         </div>
 
+        <!-- TABEL LOGS DENGAN TOMBOL EKSPOR EXCEL -->
         <div class="bg-white rounded-xl shadow overflow-hidden">
-            <div class="p-4 border-b border-gray-200">
+            <div class="p-4 border-b border-gray-200 flex justify-between items-center">
                 <h2 class="text-lg font-bold text-gray-800">Log Pelanggaran Masuk</h2>
+                <!-- TOMBOL EKSPOR KE EXCEL -->
+                <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition flex items-center gap-2 shadow">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Ekspor ke Excel
+                </button>
             </div>
             <div class="overflow-x-auto">
                 <table class="w-full text-left border-collapse">
@@ -108,7 +118,7 @@
         let uniqueStudentsSet = new Set();
         let pubnub = null;
 
-        // RUMUS GENERATE TOKEN (SAMA DENGAN MOODLE)
+        // RUMUS GENERATE TOKEN
         function getDynamicToken() {
             var SECRET_KEY = 7892;
             var minuteStep = Math.floor(Date.now() / 60000);
@@ -116,7 +126,7 @@
             return String(rawToken).padStart(6, '0');
         }
 
-        // UPDATE ANGKATOKEN DAN TIMER HITUNG MUNDUR SETIAP DETIK
+        // TIMER TOKEN REALTIME
         setInterval(function() {
             var tokenEl = document.getElementById('current-token');
             var timerEl = document.getElementById('token-timer');
@@ -205,6 +215,35 @@
 
             tbody.insertBefore(row, tbody.firstChild);
             setTimeout(() => row.classList.remove('bg-yellow-100'), 2000);
+        }
+
+        // FUNGSI EKSPOR KE EXCEL
+        function exportToExcel() {
+            if (logHistory.length === 0) {
+                alert("Belum ada data pelanggaran untuk diekspor!");
+                return;
+            }
+
+            // Format data untuk Excel
+            const excelData = logHistory.map((item, index) => ({
+                "No": index + 1,
+                "Waktu": item.timestamp || '-',
+                "Nama Siswa": item.studentName || 'Anonim',
+                "Jenis Pelanggaran": item.reason || 'Pelanggaran Detected',
+                "Pelanggaran Ke-": item.count || 1
+            }));
+
+            // Buat worksheet dan workbook
+            const worksheet = XLSX.utils.json_to_sheet(excelData);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Log Pelanggaran");
+
+            // Format nama file Excel dengan tanggal hari ini
+            const dateStr = new Date().toISOString().split('T')[0];
+            const fileName = `Laporan_Pelanggaran_CBT_${dateStr}.xlsx`;
+
+            // Download file Excel
+            XLSX.writeFile(workbook, fileName);
         }
     </script>
 </body>
