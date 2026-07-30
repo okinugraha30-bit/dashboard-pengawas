@@ -49,7 +49,7 @@
             </button>
         </header>
 
-        <!-- CARDS INFORMASI + TOKEN WIDGET -->
+        <!-- CARDS INFORMASI + KOTAK TOKEN WIDGET -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
             <div class="bg-white p-5 rounded-xl shadow border-l-4 border-yellow-500">
                 <p class="text-sm font-semibold text-gray-500">Total Kejadian Pelanggaran</p>
@@ -59,14 +59,15 @@
                 <p class="text-sm font-semibold text-gray-500">Siswa Terindikasi Melanggar</p>
                 <p id="total-students" class="text-3xl font-bold text-gray-800 mt-1">0</p>
             </div>
-            <!-- WIDGET TOKEN BUKA KUNCI REALTIME -->
+            
+            <!-- 🔑 KOTAK TOKEN BUKA KUNCI REAL-TIME -->
             <div class="bg-blue-900 text-white p-5 rounded-xl shadow border-l-4 border-blue-400 flex flex-col justify-between">
                 <div>
-                    <p class="text-xs font-semibold tracking-wider text-blue-200 uppercase">Token Buka Kunci (1 Menit)</p>
+                    <p class="text-xs font-semibold tracking-wider text-blue-200 uppercase">🔑 TOKEN BUKA KUNCI (1 MENIT)</p>
                     <p id="current-token" class="text-3xl font-mono font-extrabold tracking-widest text-yellow-300 mt-1">------</p>
                 </div>
                 <div class="text-right text-xs text-blue-200 mt-2">
-                    Berganti dalam: <span id="token-timer" class="font-bold text-white">60</span>s
+                    Ganti otomatis dlm: <span id="token-timer" class="font-bold text-white">60</span>s
                 </div>
             </div>
         </div>
@@ -107,7 +108,7 @@
         let uniqueStudentsSet = new Set();
         let pubnub = null;
 
-        // RUMUS GENERATE TOKEN (HARUS SAMA DENGAN MOODLE)
+        // RUMUS GENERATE TOKEN (SAMA DENGAN MOODLE)
         function getDynamicToken() {
             var SECRET_KEY = 7892;
             var minuteStep = Math.floor(Date.now() / 60000);
@@ -115,7 +116,7 @@
             return String(rawToken).padStart(6, '0');
         }
 
-        // UPDATE WIDGET TOKEN SETIAP DETIK
+        // UPDATE ANGKATOKEN DAN TIMER HITUNG MUNDUR SETIAP DETIK
         setInterval(function() {
             var tokenEl = document.getElementById('current-token');
             var timerEl = document.getElementById('token-timer');
