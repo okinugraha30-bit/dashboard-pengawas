@@ -1,250 +1,157 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Pengawas CBT</title>
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- PubNub SDK Terbaru -->
-    <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
-    <!-- SheetJS CDN untuk Ekspor ke Excel -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Monitoring CBT Moodle</title>
+  <!-- Tailwind CSS & PubNub SDK -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans antialiased">
+<body class="bg-slate-100 min-h-screen p-6 font-sans">
 
-    <!-- Audio Beep Notifikasi -->
-    <audio id="alert-sound" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3" preload="auto"></audio>
-
-    <!-- LOGIN SECTION -->
-    <div id="login-section" class="min-h-screen flex items-center justify-center p-4">
-        <div class="bg-white p-8 rounded-xl shadow-md w-full max-w-md border border-gray-200">
-            <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">Login Pengawas CBT</h2>
-            <div id="login-error" class="hidden mb-4 p-3 bg-red-100 border border-red-400 text-red-700 text-sm rounded">
-                Username atau password salah!
-            </div>
-            <form onsubmit="handleLogin(event)" class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium mb-1">Username</label>
-                    <input type="text" id="username-input" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium mb-1">Password</label>
-                    <input type="password" id="password-input" required class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 rounded-lg transition">
-                    Masuk Dashboard
-                </button>
-            </form>
-        </div>
+  <div class="max-w-6xl mx-auto">
+    <!-- HEADER DASHBOARD -->
+    <div class="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6 gap-4">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-2">
+          🛡️ Dashboard Pengawas CBT Moodle
+        </h1>
+        <p class="text-slate-500 text-sm mt-1">Sistem pemantauan pelanggaran & kontrol PIN pengawas terpusat.</p>
+      </div>
+      <div class="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-4 py-2 rounded-lg border border-emerald-200 font-medium text-sm">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+        Status: Terhubung (Real-time)
+      </div>
     </div>
 
-    <!-- DASHBOARD SECTION -->
-    <div id="dashboard-section" class="hidden min-h-screen p-6">
-        <header class="bg-white shadow rounded-xl p-4 mb-6 flex justify-between items-center">
-            <div>
-                <h1 class="text-xl font-bold text-gray-800">Dashboard Pemantauan Pelanggaran Ujian</h1>
-                <p class="text-sm text-gray-500">Monitoring Real-Time via PubNub</p>
-            </div>
-            <button onclick="handleLogout()" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-semibold transition">
-                Logout
-            </button>
-        </header>
-
-        <!-- CARDS INFORMASI + KOTAK TOKEN WIDGET -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div class="bg-white p-5 rounded-xl shadow border-l-4 border-yellow-500">
-                <p class="text-sm font-semibold text-gray-500">Total Kejadian Pelanggaran</p>
-                <p id="total-logs" class="text-3xl font-bold text-gray-800 mt-1">0</p>
-            </div>
-            <div class="bg-white p-5 rounded-xl shadow border-l-4 border-red-500">
-                <p class="text-sm font-semibold text-gray-500">Siswa Terindikasi Melanggar</p>
-                <p id="total-students" class="text-3xl font-bold text-gray-800 mt-1">0</p>
-            </div>
-            
-            <!-- 🔑 KOTAK TOKEN BUKA KUNCI REAL-TIME -->
-            <div class="bg-blue-900 text-white p-5 rounded-xl shadow border-l-4 border-blue-400 flex flex-col justify-between">
-                <div>
-                    <p class="text-xs font-semibold tracking-wider text-blue-200 uppercase">🔑 TOKEN BUKA KUNCI (1 MENIT)</p>
-                    <p id="current-token" class="text-3xl font-mono font-extrabold tracking-widest text-yellow-300 mt-1">------</p>
-                </div>
-                <div class="text-right text-xs text-blue-200 mt-2">
-                    Ganti otomatis dlm: <span id="token-timer" class="font-bold text-white">60</span>s
-                </div>
-            </div>
-        </div>
-
-        <!-- TABEL LOGS DENGAN EKSPOR EXCEL & KOLOM RUANGAN -->
-        <div class="bg-white rounded-xl shadow overflow-hidden">
-            <div class="p-4 border-b border-gray-200 flex justify-between items-center">
-                <h2 class="text-lg font-bold text-gray-800">Log Pelanggaran Masuk</h2>
-                <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg text-sm transition flex items-center gap-2 shadow">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Ekspor ke Excel
-                </button>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-gray-50 text-gray-600 text-xs uppercase font-semibold border-b">
-                            <th class="p-4">Waktu</th>
-                            <th class="p-4">Nama Siswa</th>
-                            <th class="p-4">Ruangan</th>
-                            <th class="p-4">Jenis Pelanggaran</th>
-                            <th class="p-4">Jumlah Pelanggaran</th>
-                        </tr>
-                    </thead>
-                    <tbody id="log-table-body" class="divide-y divide-gray-200 text-sm">
-                        <tr id="empty-row">
-                            <td colspan="5" class="p-4 text-center text-gray-400">Belum ada aktivitas pelanggaran terdeteksi.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
+    <!-- PANEL KONTROL PIN PENGAWAS -->
+    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6">
+      <h2 class="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
+        🔑 Kontrol PIN Buka Kunci Layar Siswa
+      </h2>
+      <p class="text-slate-500 text-sm mb-4">Ubah PIN di bawah ini. PIN baru akan otomatis terkirim dan berlaku di seluruh perangkat siswa secara langsung.</p>
+      
+      <div class="flex flex-wrap items-center gap-3">
+        <input type="text" id="pinInput" value="1234" maxlength="10" class="bg-slate-50 border border-slate-300 text-slate-800 font-bold text-center text-lg rounded-lg px-4 py-2 w-36 focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <button onclick="updatePin()" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-lg transition duration-200 shadow-sm">
+          Update PIN ke Semua Siswa
+        </button>
+        <span id="pinAlert" class="text-emerald-600 font-medium text-sm hidden transition-opacity duration-300">
+          ✓ PIN Berhasil Diperbarui & Ditransfer!
+        </span>
+      </div>
     </div>
 
-    <!-- SCRIPT UTAMA DASHBOARD -->
-    <script>
-        const AUTH_CONFIG = { username: "113201", password: "cbt26" };
-        const PUBNUB_CONFIG = {
-            publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87",
-            subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659",
-            channel: "cbt_monitoring_channel"
-        };
+    <!-- TABEL LOG PELANGGARAN REAL-TIME -->
+    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="p-6 border-b border-slate-200 flex justify-between items-center">
+        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+          🚨 Log Pelanggaran Siswa
+        </h2>
+        <button onclick="clearLogs()" class="text-xs text-slate-500 hover:text-red-600 font-medium underline">
+          Bersihkan Tabel Log
+        </button>
+      </div>
 
-        let logHistory = [];
-        let uniqueStudentsSet = new Set();
-        let pubnub = null;
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="bg-slate-50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200">
+              <th class="p-4">Waktu</th>
+              <th class="p-4">Nama Siswa</th>
+              <th class="p-4">Ruangan / Kelas</th>
+              <th class="p-4">Alasan Pelanggaran</th>
+              <th class="p-4 text-center">Jumlah Pelanggaran</th>
+            </tr>
+          </thead>
+          <tbody id="violationLogs" class="divide-y divide-slate-100 text-sm text-slate-700">
+            <tr id="emptyRow">
+              <td colspan="5" class="p-8 text-center text-slate-400">Belum ada pelanggaran yang terdeteksi. Pemantauan berjalan...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
 
-        // RUMUS TOKEN DINAMIS PER 1 MENIT
-        function getDynamicToken() {
-            var SECRET_KEY = 7892;
-            var minuteStep = Math.floor(Date.now() / 60000);
-            var rawToken = (minuteStep * SECRET_KEY) % 1000000;
-            return String(rawToken).padStart(6, '0');
+  <script>
+    // Inisialisasi PubNub di Dashboard Pengawas
+    const pubnub = new PubNub({
+      publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87",
+      subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659",
+      userId: "supervisor_dashboard_" + Math.floor(Math.random() * 1000)
+    });
+
+    pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
+
+    // Mendengarkan Pesan Pelanggaran Masuk
+    pubnub.addListener({
+      message: function(event) {
+        const msg = event.message;
+        if (msg && msg.type === "VIOLATION") {
+          addLogToTable(msg);
         }
+      }
+    });
 
-        // TIMER REFRESH TOKEN REALTIME
-        setInterval(function() {
-            var tokenEl = document.getElementById('current-token');
-            var timerEl = document.getElementById('token-timer');
-            if (tokenEl && timerEl) {
-                tokenEl.textContent = getDynamicToken();
-                var secondsLeft = 60 - (Math.floor(Date.now() / 1000) % 60);
-                timerEl.textContent = secondsLeft;
-            }
-        }, 1000);
+    // Fungsi Mengirimkan PIN Baru ke Semua Perangkat Siswa
+    function updatePin() {
+      const pinVal = document.getElementById('pinInput').value.trim();
+      if (!pinVal) {
+        alert("PIN tidak boleh kosong!");
+        return;
+      }
 
-        window.onload = function() {
-            if (localStorage.getItem('cbt_logged_in') === 'true') {
-                showDashboard();
-            }
-        };
-
-        function handleLogin(e) {
-            e.preventDefault();
-            const userVal = document.getElementById('username-input').value.trim();
-            const passVal = document.getElementById('password-input').value.trim();
-
-            if (userVal === AUTH_CONFIG.username && passVal === AUTH_CONFIG.password) {
-                localStorage.setItem('cbt_logged_in', 'true');
-                document.getElementById('login-error').classList.add('hidden');
-                showDashboard();
-            } else {
-                document.getElementById('login-error').classList.remove('hidden');
-            }
+      pubnub.publish({
+        channel: "cbt_monitoring_channel",
+        message: {
+          type: "UPDATE_PIN",
+          newPin: pinVal
         }
-
-        function handleLogout() {
-            localStorage.removeItem('cbt_logged_in');
-            if (pubnub) pubnub.unsubscribeAll();
-            location.reload();
+      }, function(status) {
+        if (!status.error) {
+          const alertEl = document.getElementById('pinAlert');
+          alertEl.classList.remove('hidden');
+          setTimeout(() => alertEl.classList.add('hidden'), 3000);
         }
+      });
+    }
 
-        function showDashboard() {
-            document.getElementById('login-section').classList.add('hidden');
-            document.getElementById('dashboard-section').classList.remove('hidden');
-            initPubNub();
-        }
+    // Fungsi Menambahkan Baris Log Baru di Tabel
+    function addLogToTable(data) {
+      const emptyRow = document.getElementById('emptyRow');
+      if (emptyRow) emptyRow.remove();
 
-        function initPubNub() {
-            if (pubnub) return;
+      const tbody = document.getElementById('violationLogs');
+      const tr = document.createElement('tr');
+      tr.className = "hover:bg-red-50/50 transition duration-150 animate-pulse";
 
-            pubnub = new PubNub({
-                publishKey: PUBNUB_CONFIG.publishKey,
-                subscribeKey: PUBNUB_CONFIG.subscribeKey,
-                userId: "dashboard_pengawas_" + Math.random().toString(36).substring(2, 7)
-            });
+      tr.innerHTML = `
+        <td class="p-4 font-mono text-xs text-slate-500">${data.timestamp}</td>
+        <td class="p-4 font-semibold text-slate-900">${data.studentName}</td>
+        <td class="p-4"><span class="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md text-xs font-medium border border-slate-200">${data.room}</span></td>
+        <td class="p-4 font-medium text-red-600">${data.reason}</td>
+        <td class="p-4 text-center">
+          <span class="bg-red-100 text-red-700 font-bold px-2.5 py-1 rounded-full text-xs">Ke-${data.count}</span>
+        </td>
+      `;
 
-            pubnub.addListener({
-                message: function(event) {
-                    addLogToTable(event.message);
-                }
-            });
+      tbody.insertBefore(tr, tbody.firstChild);
 
-            pubnub.subscribe({ channels: [PUBNUB_CONFIG.channel] });
-        }
+      setTimeout(() => {
+        tr.classList.remove('animate-pulse');
+      }, 1000);
+    }
 
-        function addLogToTable(data) {
-            const alertAudio = document.getElementById('alert-sound');
-            if (alertAudio) {
-                alertAudio.currentTime = 0;
-                alertAudio.play().catch(e => console.log("Audio di-block browser:", e));
-            }
-
-            const emptyRow = document.getElementById('empty-row');
-            if (emptyRow) emptyRow.remove();
-
-            logHistory.push(data);
-            if (data.studentName) uniqueStudentsSet.add(data.studentName);
-
-            document.getElementById('total-logs').textContent = logHistory.length;
-            document.getElementById('total-students').textContent = uniqueStudentsSet.size;
-
-            const tbody = document.getElementById('log-table-body');
-            const row = document.createElement('tr');
-            row.className = "hover:bg-gray-50 transition bg-yellow-100";
-
-            row.innerHTML = `
-                <td class="p-4 font-mono text-xs text-gray-500">${data.timestamp || new Date().toLocaleTimeString('id-ID')}</td>
-                <td class="p-4 font-semibold text-gray-900">${data.studentName || 'Anonim'}</td>
-                <td class="p-4 text-gray-600 font-medium">${data.room || 'Ruang 01'}</td>
-                <td class="p-4"><span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-medium">${data.reason || 'Pelanggaran Detected'}</span></td>
-                <td class="p-4 text-center font-bold text-red-600">${data.count || 1}</td>
-            `;
-
-            tbody.insertBefore(row, tbody.firstChild);
-            setTimeout(() => row.classList.remove('bg-yellow-100'), 2000);
-        }
-
-        // FUNGSI EKSPOR KE EXCEL (.XLSX)
-        function exportToExcel() {
-            if (logHistory.length === 0) {
-                alert("Belum ada data pelanggaran untuk diekspor!");
-                return;
-            }
-
-            const excelData = logHistory.map((item, index) => ({
-                "No": index + 1,
-                "Waktu": item.timestamp || '-',
-                "Nama Siswa": item.studentName || 'Anonim',
-                "Ruangan": item.room || 'Ruang 01',
-                "Jenis Pelanggaran": item.reason || 'Pelanggaran Detected',
-                "Pelanggaran Ke-": item.count || 1
-            }));
-
-            const worksheet = XLSX.utils.json_to_sheet(excelData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Log Pelanggaran");
-
-            const dateStr = new Date().toISOString().split('T')[0];
-            const fileName = `Laporan_Pelanggaran_CBT_${dateStr}.xlsx`;
-
-            XLSX.writeFile(workbook, fileName);
-        }
-    </script>
+    function clearLogs() {
+      const tbody = document.getElementById('violationLogs');
+      tbody.innerHTML = `
+        <tr id="emptyRow">
+          <td colspan="5" class="p-8 text-center text-slate-400">Belum ada pelanggaran yang terdeteksi. Pemantauan berjalan...</td>
+        </tr>
+      `;
+    }
+  </script>
 </body>
 </html>
