@@ -166,19 +166,16 @@
   <!-- ========================================================================= -->
   <!-- 4. LOGIKA JAVASCRIPT REAL-TIME & PUSHER RECEIVER                          -->
   <!-- ========================================================================= -->
+ <!-- LOGIKA JAVASCRIPT & PUSHER RECEIVER -->
   <script>
-    // A. CONFIG PUSHER & AUTHENTICATION
+    // 1. CONFIG PUSHER & AUTH
     const PUSHER_CONFIG = {
-      key: 'cb5ab7ef70af8ca8fad5',      // Sesuaikan Key Pusher
-      cluster: 'ap1' // Contoh: 'ap1'
+      key: 'cb5ab7ef70af8ca8fad5',
+      cluster: 'ap1'
     };
 
-    const AUTH_CONFIG = {
-      username: "pengawas",
-      password: "cbtproctor2026"
-    };
+    const AUTH_CONFIG = { username: "pengawas", password: "cbtproctor2026" };
 
-    // Pengecekan Login
     document.addEventListener("DOMContentLoaded", () => {
       if (sessionStorage.getItem("proctor_logged_in") === "true") {
         document.getElementById("login-modal").classList.add("hidden");
@@ -200,6 +197,97 @@
       sessionStorage.removeItem("proctor_logged_in");
       document.getElementById("login-modal").classList.remove("hidden");
     }
+
+    // 2. GENERATOR TOKEN 15 MENIT
+    function getDynamicToken(timeBlock) {
+      const hash = Math.abs((timeBlock * 9301 + 49297) % 233280);
+      return hash.toString(36).substring(0, 4).toUpperCase();
+    }
+
+    function updateDashboard() {
+      const now = new Date();
+      document.getElementById('live-clock').innerText = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')} WIB`;
+
+      const currentTimeMs = now.getTime();
+      const intervalMs = 15 * 60 * 1000;
+      const currentBlock = Math.floor(currentTimeMs / intervalMs);
+
+      document.getElementById('active-token').innerText = getDynamicToken(currentBlock);
+
+      const msRemaining = intervalMs - (currentTimeMs % intervalMs);
+      const totalSecsRemaining = Math.floor(msRemaining / 1000);
+      document.getElementById('countdown').innerText = `${String(Math.floor(totalSecsRemaining / 60)).padStart(2, '0')}:${String(totalSecsRemaining % 60).padStart(2, '0')}`;
+      document.getElementById('progress-bar').style.width = `${(msRemaining / intervalMs) * 100}%`;
+    }
+    setInterval(updateDashboard, 1000);
+    updateDashboard();
+
+    // 3. SUARA ALARM BIP
+    function playBeepSound() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = audioCtx.createOscillator();
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+        osc.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.15);
+      } catch(e) {}
+    }
+
+    // 4. PENERIMA LOG PELANGGARAN REAL-TIME DARI MOODLE
+    let totalViolationCounter = 0;
+
+    function renderLogData(data) {
+      const emptyRow = document.getElementById('empty-log-row');
+      if (emptyRow) emptyRow.remove();
+
+      totalViolationCounter++;
+      document.getElementById('total-violations').innerText = `${totalViolationCounter} Pelanggaran`;
+
+      const tableBody = document.getElementById('violation-log-table');
+      const newRow = document.createElement('tr');
+      newRow.className = "hover:bg-slate-700/30 transition-all border-b border-slate-700/40 bg-red-950/10";
+      
+      newRow.innerHTML = `
+        <td class="p-3 font-mono text-slate-400">${data.timestamp}</td>
+        <td class="p-3 font-semibold text-amber-300">${data.studentName}</td>
+        <td class="p-3 text-red-400 flex items-center space-x-1.5">
+          <i class="fa-solid fa-triangle-exclamation text-[10px]"></i>
+          <span>${data.reason}</span>
+        </td>
+        <td class="p-3 text-center font-bold">
+          <span class="bg-red-950 text-red-400 border border-red-800/60 px-2 py-0.5 rounded-md text-[10px]">
+            ${data.count}x
+          </span>
+        </td>
+      `;
+
+      tableBody.insertBefore(newRow, tableBody.firstChild);
+      playBeepSound();
+    }
+
+    // MENDENGARKAN EVENT PUSHER DARI SISWA
+    try {
+      const pusher = new Pusher(PUSHER_CONFIG.key, { 
+        cluster: PUSHER_CONFIG.cluster,
+        forceTLS: true 
+      });
+      
+      const channel = pusher.subscribe('cbt-channel');
+      
+      // Mendengarkan event berawalan client-
+      channel.bind('client-violation-event', function(data) {
+        renderLogData(data);
+      });
+    } catch(e) { console.log('Error Pusher Listener:', e); }
+
+    function clearLog() {
+      document.getElementById('violation-log-table').innerHTML = `<tr id="empty-log-row"><td colspan="4" class="text-center py-10 text-slate-500 italic">Belum ada indikasi kecurangan yang terdeteksi dari siswa.</td></tr>`;
+      totalViolationCounter = 0;
+      document.getElementById('total-violations').innerText = `0 Pelanggaran`;
+    }
+  </script>
 
     // B. LOGIKA TOKEN 15 MENIT
     function getDynamicToken(timeBlock) {
