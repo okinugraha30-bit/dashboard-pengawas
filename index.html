@@ -6,7 +6,7 @@
   <title>Dashboard Pengawas CBT - Realtime Monitoring</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- PubNub SDK v7.2.0 (Disamakan dengan sisi siswa agar terhubung) -->
+  <!-- PubNub SDK v7 -->
   <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
   <!-- SweetAlert2 -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -14,6 +14,13 @@
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/xlsx.full.min.js"></script>
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-800">
+
+  <script>
+    // PROTEKSI SAKLAR LOGIN: Jika belum login, paksa ke login.html
+    if (sessionStorage.getItem('cbt_admin_logged_in') !== 'true') {
+      window.location.href = "login.html";
+    }
+  </script>
 
   <!-- HEADER -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
@@ -27,18 +34,18 @@
       </div>
       
       <div class="flex items-center gap-3 flex-wrap">
-        <!-- 📁 TOMBOL UPLOAD EXCEL PESERTA -->
+        <!-- 📁 UPLOAD EXCEL PESERTA -->
         <label class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg cursor-pointer transition flex items-center gap-2 shadow-sm">
           📁 Upload Data Ruang (Excel)
           <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(event)">
         </label>
 
-        <!-- ☕ TOMBOL JEDA GLOBAL -->
+        <!-- ☕ JEDA GLOBAL -->
         <button id="global-pause-btn" onclick="toggleGlobalPause()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition flex items-center gap-2 shadow-sm">
           ☕ <span id="global-pause-text">Mode Jeda: MATI</span>
         </button>
 
-        <!-- 🔑 TOKEN KODE TOTP & TIMER -->
+        <!-- 🔑 TOKEN TOTP & TIMER -->
         <div class="bg-blue-50 border border-blue-200 px-4 py-2 rounded-lg flex items-center gap-3">
           <div class="text-right">
             <div class="flex items-center justify-end gap-2">
@@ -50,7 +57,7 @@
           <button onclick="copyTotpToken()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2.5 py-1.5 rounded font-medium transition">Salin</button>
         </div>
 
-        <!-- TOMBOL LOGOUT -->
+        <!-- LOGOUT -->
         <button onclick="handleLogout()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition">
           Logout
         </button>
@@ -75,6 +82,7 @@
         <div class="text-sm font-medium text-slate-500">Status Database Ruangan</div>
         <div id="stat-excel-status" class="text-sm font-bold text-amber-600 mt-2">Belum Diunggah (Default Moodle)</div>
       </div>
+      
       <!-- 🏢 FILTER RUANGAN -->
       <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
         <label for="room-filter" class="text-sm font-medium text-slate-500 block mb-1">Filter Ruang Ujian</label>
@@ -82,6 +90,7 @@
           <option value="ALL">Semua Ruangan</option>
         </select>
       </div>
+
       <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between gap-2">
         <button onclick="exportToExcel()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-4 rounded-lg text-sm transition shadow-sm flex items-center justify-center gap-1.5">
           📊 Ekspor Laporan Excel
@@ -122,7 +131,6 @@
 
   </main>
 
-  <!-- SCRIPT LOGIKA DASHBOARD -->
   <script>
     let studentRoomMapping = JSON.parse(localStorage.getItem('cbt_room_mapping') || '{}');
     let studentLogs = JSON.parse(localStorage.getItem('cbt_student_logs') || '{}');
@@ -270,12 +278,11 @@
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Token disalin!', showConfirmButton: false, timer: 1500 });
     }
 
-    // 🔌 PUBNUB REALTIME CONNECTION (Menggunakan PubNub v7)
+    // PUBNUB REALTIME CONNECTION
     const pubnub = new PubNub({
       publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87",
       subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659",
-      uuid: "dashboard_pengawas_" + Math.floor(Math.random() * 1000),
-      heartbeatInterval: 30
+      uuid: "dashboard_pengawas_" + Math.floor(Math.random() * 1000)
     });
 
     pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
@@ -319,10 +326,6 @@
           const statusBadge = document.getElementById('connection-status');
           statusBadge.textContent = "Terhubung (Live)";
           statusBadge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-semibold";
-        } else if (statusEvent.category === "PNNetworkIssuesCategory" || statusEvent.category === "PNDisconnectedCategory") {
-          const statusBadge = document.getElementById('connection-status');
-          statusBadge.textContent = "Menghubungkan ulang...";
-          statusBadge.className = "text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-semibold";
         }
       },
       message: function(msg) {
@@ -352,7 +355,6 @@
       const subtitle = document.getElementById('table-subtitle');
       
       const keys = Object.keys(studentLogs);
-      
       const filteredKeys = keys.filter(k => {
         if (selectedRoom === 'ALL') return true;
         return studentLogs[k].room === selectedRoom;
@@ -413,15 +415,8 @@
       });
     }
 
+    // FUNGSI LOGOUT YANG SUDAH DIPERBAIKI
     function handleLogout() {
-      // Hentikan koneksi pubnub
-      if (typeof pubnub !== 'undefined') {
-        pubnub.unsubscribeAll();
-      }
-      
-      // Bersihkan cache sesi lokal dashboard jika diperlukan (opsional, biarkan log tetap ada jika ingin aman)
-      // localStorage.removeItem('cbt_global_paused');
-
       Swal.fire({
         title: 'Keluar Dashboard?',
         text: "Anda akan keluar dari sesi pengawasan.",
@@ -429,14 +424,23 @@
         showCancelButton: true,
         confirmButtonColor: '#3085d6',
         cancelButtonColor: '#d33',
-        confirmButtonText: 'Ya, Keluar'
+        confirmButtonText: 'Ya, Keluar',
+        cancelButtonText: 'Batal'
       }).then((result) => {
         if (result.isConfirmed) {
-          // Cek apakah ada file login.html, jika tidak arahkan ke halaman utama atau Github Pages root
-          window.location.href = "./index.html"; 
+          // Clean sesi login
+          sessionStorage.removeItem('cbt_admin_logged_in');
+          if (typeof pubnub !== 'undefined') {
+            pubnub.unsubscribeAll();
+          }
+          // Redirect ke login.html
+          window.location.href = "login.html";
         }
       });
     }
+
+    updateRoomFilterDropdown();
+    renderTable();
   </script>
 </body>
 </html>
