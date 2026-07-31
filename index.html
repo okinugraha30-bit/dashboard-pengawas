@@ -7,20 +7,11 @@
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- PubNub SDK -->
-  <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
+  <script src="https://pubnub.github.io/javascript/sdk/pubnub.4.29.9.min.js"></script>
   <!-- SweetAlert2 -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <!-- SheetJS untuk membaca file Excel -->
+  <!-- SheetJS untuk membaca dan mengekspor file Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/xlsx.full.min.js"></script>
-  <style>
-    @keyframes pulse-fast {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.4; }
-    }
-    .animate-pulse-fast {
-      animation: pulse-fast 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-    }
-  </style>
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-800">
 
@@ -84,8 +75,12 @@
         <div class="text-sm font-medium text-slate-500">Status Database Ruangan</div>
         <div id="stat-excel-status" class="text-sm font-bold text-amber-600 mt-2">Belum Diunggah (Default Moodle)</div>
       </div>
-      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
-        <button onclick="resetDashboardData()" class="w-full bg-red-50 hover:bg-red-100 text-red-700 font-semibold py-2.5 px-4 rounded-lg border border-red-200 text-sm transition">
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between gap-2">
+        <!-- 📥 TOMBOL EKSPOR EXCEL LAPORAN -->
+        <button onclick="exportToExcel()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-4 rounded-lg text-sm transition shadow-sm flex items-center justify-center gap-1.5">
+          📊 Ekspor Laporan Excel
+        </button>
+        <button onclick="resetDashboardData()" class="w-full bg-red-50 hover:bg-red-100 text-red-700 font-semibold py-2 px-4 rounded-lg border border-red-200 text-sm transition">
           Reset Log Data Siswa
         </button>
       </div>
@@ -139,7 +134,7 @@
       document.getElementById('stat-excel-status').className = "text-sm font-bold text-emerald-600 mt-2";
     }
 
-    // 📁 FUNGSI HANDLE UPLOAD EXCEL
+    // 📁 FUNGSI HANDLE UPLOAD EXCEL RUANGAN
     function handleExcelUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -186,13 +181,40 @@
       reader.readAsArrayBuffer(file);
     }
 
+    // 📥 FUNGSI EKSPOR LAPORAN KE EXCEL
+    function exportToExcel() {
+      const keys = Object.keys(studentLogs);
+      if (keys.length === 0) {
+        Swal.fire('Kosong', 'Belum ada data pelanggaran siswa yang dapat diekspor.', 'info');
+        return;
+      }
+
+      let excelData = keys.map(k => {
+        let item = studentLogs[k];
+        return {
+          "Waktu": item.time,
+          "Nama Siswa / Username": item.name,
+          "Ruang Ujian": item.room,
+          "Jumlah Pelanggaran": item.count,
+          "Detail Pelanggaran": item.reason
+        };
+      });
+
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Pelanggaran");
+      
+      // Unduh file excel
+      XLSX.writeFile(workbook, "Laporan_Pelanggaran_CBT.xlsx");
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Laporan berhasil diunduh!', showConfirmButton: false, timer: 2000 });
+    }
+
     // 🔑 ALGORITMA TOTP 3 MENIT & TIMER MUNDUR
     const SECRET_SALT = "CBT_SECRET_KEY_2026";
     function updateTOTP() {
       const epochSec = Math.floor(Date.now() / 1000);
       const timeStep = Math.floor(epochSec / 180);
       
-      // Hitung sisa detik menuju pergantian token berikutnya (siklus 180 detik / 3 menit)
       const secondsRemaining = 180 - (epochSec % 180);
       const minStr = String(Math.floor(secondsRemaining / 60)).padStart(2, '0');
       const secStr = String(secondsRemaining % 60).padStart(2, '0');
@@ -220,7 +242,7 @@
     const pubnub = new PubNub({
       publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87",
       subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659",
-      userId: "dashboard_pengawas_" + Math.floor(Math.random() * 1000)
+      uuid: "dashboard_pengawas_" + Math.floor(Math.random() * 1000)
     });
 
     pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
