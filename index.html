@@ -3,232 +3,344 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard Pemantauan Pelanggaran Ujian</title>
-  <!-- Tailwind CSS, PubNub, & SheetJS (untuk Ekspor Excel) -->
+  <title>Dashboard Pengawas CBT - Realtime Monitoring</title>
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- PubNub SDK -->
   <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- SheetJS untuk membaca file Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/xlsx.full.min.js"></script>
+  <style>
+    @keyframes pulse-fast {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .animate-pulse-fast {
+      animation: pulse-fast 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
+  </style>
 </head>
-<body class="bg-slate-100 min-h-screen p-6 font-sans">
+<body class="bg-slate-50 min-h-screen font-sans text-slate-800">
 
-  <div class="max-w-6xl mx-auto">
-    
-    <!-- HEADER (DENGAN TOMBOL LOGOUT) -->
-    <div class="flex flex-col md:flex-row justify-between items-center bg-white p-6 rounded-xl shadow-sm border border-slate-200 mb-6 gap-4">
+  <!-- HEADER -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-slate-800">
-          Dashboard Pemantauan Pelanggaran Ujian
+        <h1 class="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          🛡️ Dashboard Pengawas CBT
+          <span id="connection-status" class="text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-semibold">Menghubungkan...</span>
         </h1>
-        <p class="text-slate-500 text-sm mt-1">Monitoring Real-Time via PubNub</p>
+        <p class="text-sm text-slate-500">Sistem Pemantauan Pelanggaran Ujian Siswa Berbasis Real-Time</p>
       </div>
-      <div class="flex items-center gap-3">
-        <button onclick="handleLogout()" class="bg-red-500 hover:bg-red-600 text-white font-semibold px-5 py-2 rounded-lg text-sm transition duration-200 shadow-sm">
+      
+      <div class="flex items-center gap-3 flex-wrap">
+        <!-- ☕ TOMBOL PUTUS NYAMBUNG / JEDA GLOBAL DARI DASHBOARD -->
+        <button id="global-pause-btn" onclick="toggleGlobalPause()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition flex items-center gap-2 shadow-sm">
+          ☕ <span id="global-pause-text">Mode Jeda: MATI</span>
+        </button>
+
+        <!-- TOMBOL UPLOAD EXCEL PESERTA -->
+        <label class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg cursor-pointer transition flex items-center gap-2 shadow-sm">
+          📁 Upload Data Ruang (Excel)
+          <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(event)">
+        </label>
+
+        <!-- TOKEN KODE TOTP 3 MENIT -->
+        <div class="bg-blue-50 border border-blue-200 px-4 py-2 rounded-lg flex items-center gap-3">
+          <div class="text-right">
+            <div class="text-xs text-blue-600 font-medium">Token TOTP Pengawas:</div>
+            <div id="totp-display" class="text-xl font-mono font-bold text-blue-900 tracking-wider">------</div>
+          </div>
+          <button onclick="copyTotpToken()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2.5 py-1.5 rounded font-medium transition">Salin</button>
+        </div>
+
+        <button onclick="handleLogout()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition">
           Logout
         </button>
       </div>
     </div>
+  </header>
 
-    <!-- CARDS SUMMARY & KOTAK TOKEN TOTP 3 MENIT -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-      
-      <!-- Card Total Kejadian -->
-      <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-yellow-500">
-        <p class="text-slate-500 text-sm font-medium">Total Kejadian Pelanggaran</p>
-        <h3 id="totalViolations" class="text-4xl font-bold text-slate-800 mt-2">0</h3>
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl mx-auto px-4 py-8">
+    
+    <!-- STATISTIK & FILTER -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div class="text-sm font-medium text-slate-500">Total Siswa Terpantau</div>
+        <div id="stat-total" class="text-3xl font-bold text-slate-900 mt-1">0</div>
       </div>
-
-      <!-- Card Siswa Terindikasi -->
-      <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 border-l-4 border-l-red-500">
-        <p class="text-slate-500 text-sm font-medium">Siswa Terindikasi Melanggar</p>
-        <h3 id="uniqueStudents" class="text-4xl font-bold text-slate-800 mt-2">0</h3>
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div class="text-sm font-medium text-slate-500">Total Pelanggaran</div>
+        <div id="stat-violations" class="text-3xl font-bold text-red-600 mt-1">0</div>
       </div>
-
-      <!-- Kotak Token TOTP 3 Menit -->
-      <div class="bg-gradient-to-br from-blue-900 to-indigo-900 p-6 rounded-xl shadow-md text-white flex flex-col justify-between relative overflow-hidden">
-        <div>
-          <span class="text-xs font-semibold text-blue-200 tracking-wider uppercase flex items-center gap-1">
-            🔑 TOKEN BUKA KUNCI (3 MENIT)
-          </span>
-          <h2 id="totpToken" class="text-4xl font-mono font-bold text-yellow-400 mt-2 tracking-widest">
-            ------
-          </h2>
-        </div>
-        <div class="mt-4 flex justify-between items-center text-xs text-blue-200 border-t border-blue-700/50 pt-2">
-          <span>Ganti otomatis dlm:</span>
-          <span id="countdownText" class="font-bold text-white font-mono text-sm">180s</span>
-        </div>
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div class="text-sm font-medium text-slate-500">Status Database Ruangan</div>
+        <div id="stat-excel-status" class="text-sm font-bold text-amber-600 mt-2">Belum Diunggah (Default Moodle)</div>
       </div>
-
+      <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
+        <button onclick="resetDashboardData()" class="w-full bg-red-50 hover:bg-red-100 text-red-700 font-semibold py-2.5 px-4 rounded-lg border border-red-200 text-sm transition">
+          Reset Log Data Siswa
+        </button>
+      </div>
     </div>
 
-    <!-- TABEL LOG PELANGGARAN + TOMBOL EKSPOR EXCEL -->
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-      <div class="p-6 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 class="text-lg font-bold text-slate-800">
-          Log Pelanggaran Masuk
-        </h2>
-        <div class="flex items-center gap-3">
-          <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition duration-200 flex items-center gap-2 shadow-sm">
-            📊 Ekspor ke Excel
-          </button>
-          <button onclick="clearLogs()" class="text-xs text-slate-400 hover:text-red-600 font-medium underline">
-            Bersihkan Log
-          </button>
-        </div>
+    <!-- TABEL MONITORING SISWA -->
+    <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+        <h3 class="font-bold text-slate-800">Daftar Aktivitas & Pelanggaran Siswa</h3>
+        <span class="text-xs text-slate-500">*Data diperbarui secara real-time via PubNub</span>
       </div>
-
+      
       <div class="overflow-x-auto">
-        <table id="logTable" class="w-full text-left border-collapse">
+        <table class="w-full text-left border-collapse">
           <thead>
-            <tr class="bg-slate-50 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200">
-              <th class="p-4">Waktu</th>
-              <th class="p-4">Nama Siswa</th>
-              <th class="p-4">Ruangan</th>
-              <th class="p-4">Jenis Pelanggaran</th>
-              <th class="p-4 text-center">Jumlah Pelanggaran</th>
+            <tr class="bg-slate-100 text-slate-600 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
+              <th class="py-3 px-4">Waktu</th>
+              <th class="py-3 px-4">Nama Siswa / Username</th>
+              <th class="py-3 px-4">Ruang Ujian</th>
+              <th class="py-3 px-4">Status Pelanggaran</th>
+              <th class="py-3 px-4">Detail Pelanggaran</th>
+              <th class="py-3 px-4 text-center">Aksi</th>
             </tr>
           </thead>
-          <tbody id="violationLogs" class="divide-y divide-slate-100 text-sm text-slate-700">
-            <tr id="emptyRow">
-              <td colspan="5" class="p-8 text-center text-slate-400">Belum ada aktivitas pelanggaran terdeteksi.</td>
+          <tbody id="violation-table-body" class="divide-y divide-slate-200 text-sm">
+            <tr>
+              <td colspan="6" class="text-center py-8 text-slate-400">Belum ada pelanggaran atau aktivitas siswa tercatat.</td>
             </tr>
           </tbody>
         </table>
       </div>
     </div>
 
-  </div>
+  </main>
 
+  <!-- SCRIPT LOGIKA DASHBOARD -->
   <script>
+    let studentRoomMapping = JSON.parse(localStorage.getItem('cbt_room_mapping') || '{}');
+    let studentLogs = JSON.parse(localStorage.getItem('cbt_student_logs') || '{}');
+    let isGlobalPaused = localStorage.getItem('cbt_global_paused') === 'true';
+
+    // Inisialisasi tampilan tombol jeda global
+    const globalBtn = document.getElementById('global-pause-btn');
+    const globalTxt = document.getElementById('global-pause-text');
+    if (isGlobalPaused) {
+      globalBtn.className = "bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition flex items-center gap-2 shadow-sm";
+      globalTxt.textContent = "Mode Jeda: AKTIF";
+    }
+
+    if (Object.keys(studentRoomMapping).length > 0) {
+      document.getElementById('stat-excel-status').textContent = `Aktif (${Object.keys(studentRoomMapping).length} Data Siswa)`;
+      document.getElementById('stat-excel-status').className = "text-sm font-bold text-emerald-600 mt-2";
+    }
+
+    // 📁 FUNGSI HANDLE UPLOAD EXCEL
+    function handleExcelUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const jsonSheet = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+          let mappingCount = 0;
+          let tempMapping = {};
+
+          for (let i = 1; i < jsonSheet.length; i++) {
+            let row = jsonSheet[i];
+            if (row && row.length >= 2) {
+              let usernameKey = String(row[0]).trim().toLowerCase();
+              let roomVal = String(row[1]).trim();
+              if (usernameKey && roomVal) {
+                tempMapping[usernameKey] = roomVal;
+                mappingCount++;
+              }
+            }
+          }
+
+          if (mappingCount > 0) {
+            studentRoomMapping = tempMapping;
+            localStorage.setItem('cbt_room_mapping', JSON.stringify(studentRoomMapping));
+            document.getElementById('stat-excel-status').textContent = `Aktif (${mappingCount} Data Siswa)`;
+            document.getElementById('stat-excel-status').className = "text-sm font-bold text-emerald-600 mt-2";
+            Swal.fire('Berhasil!', `Berhasil memuat ${mappingCount} data mapping ruangan siswa.`, 'success');
+            renderTable();
+          } else {
+            Swal.fire('Format Salah', 'Pastikan kolom excel berisi [Username] di kolom 1 dan [Ruang Ujian] di kolom 2.', 'warning');
+          }
+        } catch (err) {
+          console.error(err);
+          Swal.fire('Gagal Membaca File', 'Terjadi kesalahan saat memproses file excel.', 'error');
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+
     // 🔑 ALGORITMA TOTP 3 MENIT
     const SECRET_SALT = "CBT_SECRET_KEY_2026";
-    let totalCount = 0;
-    const studentSet = new Set();
-    const violationDataList = [];
-
-    function generateTOTP3Min() {
+    function updateTOTP() {
       const epochSec = Math.floor(Date.now() / 1000);
       const timeStep = Math.floor(epochSec / 180);
-      
       let hash = 0;
       const str = SECRET_SALT + timeStep;
       for (let i = 0; i < str.length; i++) {
         hash = ((hash << 5) - hash) + str.charCodeAt(i);
         hash |= 0;
       }
-      
-      const code = Math.abs(hash % 900000) + 100000;
-      return code.toString();
+      const code = (Math.abs(hash % 900000) + 100000).toString();
+      document.getElementById('totp-display').textContent = code;
+    }
+    setInterval(updateTOTP, 1000);
+    updateTOTP();
+
+    function copyTotpToken() {
+      const token = document.getElementById('totp-display').textContent;
+      navigator.clipboard.writeText(token);
+      Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Token disalin!', showConfirmButton: false, timer: 1500 });
     }
 
-    function updateTOTPDisplay() {
-      const token = generateTOTP3Min();
-      document.getElementById('totpToken').innerText = token;
-
-      const epochSec = Math.floor(Date.now() / 1000);
-      const remainingSec = 180 - (epochSec % 180);
-      document.getElementById('countdownText').innerText = remainingSec + "s";
-    }
-
-    setInterval(updateTOTPDisplay, 1000);
-    updateTOTPDisplay();
-
-    // 📡 PUBNUB MONITORING
+    // 🔌 PUBNUB REALTIME CONNECTION
     const pubnub = new PubNub({
       publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87",
       subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659",
-      userId: "supervisor_dashboard_" + Math.floor(Math.random() * 1000)
+      userId: "dashboard_pengawas_" + Math.floor(Math.random() * 1000)
     });
 
     pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
 
+    // ☕ FUNGSI MENGIRIM STATUS JEDA KE SEMUA SISWA VIA PUBNUB
+    function toggleGlobalPause() {
+      isGlobalPaused = !isGlobalPaused;
+      localStorage.setItem('cbt_global_paused', isGlobalPaused);
+
+      const btn = document.getElementById('global-pause-btn');
+      const txt = document.getElementById('global-pause-text');
+
+      if (isGlobalPaused) {
+        btn.className = "bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition flex items-center gap-2 shadow-sm";
+        txt.textContent = "Mode Jeda: AKTIF";
+      } else {
+        btn.className = "bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition flex items-center gap-2 shadow-sm";
+        txt.textContent = "Mode Jeda: MATI";
+      }
+
+      // Siarkan sinyal jeda ke seluruh perangkat siswa secara real-time
+      pubnub.publish({
+        channel: "cbt_monitoring_channel",
+        message: {
+          type: "GLOBAL_PAUSE_SIGNAL",
+          isPaused: isGlobalPaused
+        }
+      });
+
+      Swal.fire({
+        toast: true,
+        position: 'top-end',
+        icon: isGlobalPaused ? 'info' : 'success',
+        title: isGlobalPaused ? 'Mode Jeda Global Diaktifkan untuk Semua Siswa' : 'Ujian Dilanjutkan Kembali',
+        showConfirmButton: false,
+        timer: 2000
+      });
+    }
+
     pubnub.addListener({
-      message: function(event) {
-        const msg = event.message;
-        if (msg && msg.type === "VIOLATION") {
-          addLogToTable(msg);
+      status: function(statusEvent) {
+        if (statusEvent.category === "PNConnectedCategory") {
+          const statusBadge = document.getElementById('connection-status');
+          statusBadge.textContent = "Terhubung (Live)";
+          statusBadge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-semibold";
+        }
+      },
+      message: function(msg) {
+        const data = msg.message;
+        if (data && data.type === "VIOLATION") {
+          let studentKey = data.studentName.toLowerCase().trim();
+          let resolvedRoom = studentRoomMapping[studentKey] || data.room || "Ruang Umum";
+
+          studentLogs[data.studentName] = {
+            time: data.timestamp,
+            name: data.studentName,
+            room: resolvedRoom,
+            reason: data.reason,
+            count: data.count
+          };
+
+          localStorage.setItem('cbt_student_logs', JSON.stringify(studentLogs));
+          renderTable();
         }
       }
     });
 
-    function addLogToTable(data) {
-      const emptyRow = document.getElementById('emptyRow');
-      if (emptyRow) emptyRow.remove();
+    // 📊 RENDER TABEL DATA
+    function renderTable() {
+      const tbody = document.getElementById('violation-table-body');
+      const keys = Object.keys(studentLogs);
+      
+      document.getElementById('stat-total').textContent = keys.length;
+      let totalViolationsCount = 0;
+      keys.forEach(k => totalViolationsCount += studentLogs[k].count);
+      document.getElementById('stat-violations').textContent = totalViolationsCount;
 
-      totalCount++;
-      studentSet.add(data.studentName);
-
-      document.getElementById('totalViolations').innerText = totalCount;
-      document.getElementById('uniqueStudents').innerText = studentSet.size;
-
-      // Simpan data untuk ekspor Excel
-      violationDataList.push({
-        "Waktu": data.timestamp,
-        "Nama Siswa": data.studentName,
-        "Ruangan": data.room,
-        "Jenis Pelanggaran": data.reason,
-        "Jumlah Pelanggaran": data.count
-      });
-
-      const tbody = document.getElementById('violationLogs');
-      const tr = document.createElement('tr');
-      tr.className = "hover:bg-red-50/50 transition duration-150 animate-pulse";
-
-      tr.innerHTML = `
-        <td class="p-4 font-mono text-xs text-slate-500">${data.timestamp}</td>
-        <td class="p-4 font-semibold text-slate-900">${data.studentName}</td>
-        <td class="p-4"><span class="bg-slate-100 text-slate-700 px-2.5 py-1 rounded-md text-xs font-medium border border-slate-200">${data.room}</span></td>
-        <td class="p-4 font-medium text-red-600">${data.reason}</td>
-        <td class="p-4 text-center">
-          <span class="bg-red-100 text-red-700 font-bold px-2.5 py-1 rounded-full text-xs">Ke-${data.count}</span>
-        </td>
-      `;
-
-      tbody.insertBefore(tr, tbody.firstChild);
-
-      setTimeout(() => {
-        tr.classList.remove('animate-pulse');
-      }, 1000);
-    }
-
-    // 📊 FUNGSI EKSPOR KE EXCEL
-    function exportToExcel() {
-      if (violationDataList.length === 0) {
-        alert("Belum ada data pelanggaran untuk diekspor!");
+      if (keys.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">Belum ada pelanggaran atau aktivitas siswa tercatat.</td></tr>`;
         return;
       }
 
-      const worksheet = XLSX.utils.json_to_sheet(violationDataList);
-      const workbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(workbook, worksheet, "Log Pelanggaran");
-
-      // Auto-fit kolom sederhana
-      const dateStr = new Date().toISOString().slice(0,10);
-      XLSX.writeFile(workbook, `Log_Pelanggaran_CBT_${dateStr}.xlsx`);
+      tbody.innerHTML = '';
+      keys.forEach(k => {
+        let item = studentLogs[k];
+        let tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+        tr.innerHTML = `
+          <td class="py-3 px-4 text-slate-500 font-mono text-xs">${item.time}</td>
+          <td class="py-3 px-4 font-semibold text-slate-900">${item.name}</td>
+          <td class="py-3 px-4"><span class="bg-blue-50 text-blue-700 px-2 py-1 rounded text-xs font-bold border border-blue-200">${item.room}</span></td>
+          <td class="py-3 px-4"><span class="bg-red-100 text-red-700 px-2.5 py-1 rounded-full text-xs font-bold">Pelanggaran ke-${item.count}</span></td>
+          <td class="py-3 px-4 text-red-600 font-medium">${item.reason}</td>
+          <td class="py-3 px-4 text-center">
+            <button onclick="clearStudent('${k}')" class="bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs px-3 py-1.5 rounded transition font-medium">Hapus Log</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
     }
 
-    // 🚪 FUNGSI LOGOUT
+    function clearStudent(key) {
+      delete studentLogs[key];
+      localStorage.setItem('cbt_student_logs', JSON.stringify(studentLogs));
+      renderTable();
+    }
+
+    function resetDashboardData() {
+      Swal.fire({
+        title: 'Reset Semua Log?',
+        text: "Semua riwayat pelanggaran siswa akan dihapus dari layar.",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        confirmButtonText: 'Ya, Reset!'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          studentLogs = {};
+          localStorage.removeItem('cbt_student_logs');
+          renderTable();
+          Swal.fire('Direset!', 'Log data berhasil dibersihkan.', 'success');
+        }
+      });
+    }
+
     function handleLogout() {
-      if (confirm("Apakah Anda yakin ingin keluar dari Dashboard Pengawas?")) {
-        window.location.href = "login.html"; // Atau sesuaikan halaman login Anda
-      }
+      window.location.href = "login.html";
     }
 
-    function clearLogs() {
-      totalCount = 0;
-      studentSet.clear();
-      violationDataList.length = 0;
-      
-      document.getElementById('totalViolations').innerText = "0";
-      document.getElementById('uniqueStudents').innerText = "0";
-      
-      const tbody = document.getElementById('violationLogs');
-      tbody.innerHTML = `
-        <tr id="emptyRow">
-          <td colspan="5" class="p-8 text-center text-slate-400">Belum ada aktivitas pelanggaran terdeteksi.</td>
-        </tr>
-      `;
-    }
+    renderTable();
   </script>
 </body>
 </html>
