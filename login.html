@@ -6,11 +6,11 @@
   <title>Dashboard Pengawas CBT - Realtime Monitoring</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- PubNub SDK -->
-  <script src="https://pubnub.github.io/javascript/sdk/pubnub.4.29.9.min.js"></script>
+  <!-- PubNub SDK v7.2.0 (Disamakan dengan sisi siswa agar terhubung) -->
+  <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
   <!-- SweetAlert2 -->
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <!-- SheetJS untuk membaca dan mengekspor file Excel -->
+  <!-- SheetJS untuk Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/xlsx.full.min.js"></script>
 </head>
 <body class="bg-slate-50 min-h-screen font-sans text-slate-800">
@@ -135,12 +135,9 @@
       globalTxt.textContent = "Mode Jeda: AKTIF";
     }
 
-    // Fungsi memperbarui isi dropdown pilihan ruangan berdasarkan mapping excel
     function updateRoomFilterDropdown() {
       const select = document.getElementById('room-filter');
       const currentSelected = select.value;
-      
-      // Ambil daftar ruangan unik dari mapping
       let rooms = [...new Set(Object.values(studentRoomMapping))].sort();
       
       select.innerHTML = `<option value="ALL">Semua Ruangan (${rooms.length > 0 ? Object.keys(studentRoomMapping).length + ' Siswa' : 'Default'})</option>`;
@@ -160,7 +157,6 @@
       updateRoomFilterDropdown();
     }
 
-    // 📁 FUNGSI HANDLE UPLOAD EXCEL RUANGAN
     function handleExcelUpload(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -209,7 +205,6 @@
       reader.readAsArrayBuffer(file);
     }
 
-    // 📥 FUNGSI EKSPOR LAPORAN KE EXCEL (Berdasarkan filter aktif)
     function exportToExcel() {
       const selectedRoom = document.getElementById('room-filter').value;
       const keys = Object.keys(studentLogs);
@@ -247,7 +242,6 @@
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Laporan berhasil diunduh!', showConfirmButton: false, timer: 2000 });
     }
 
-    // 🔑 ALGORITMA TOTP 3 MENIT
     const SECRET_SALT = "CBT_SECRET_KEY_2026";
     function updateTOTP() {
       const epochSec = Math.floor(Date.now() / 1000);
@@ -276,11 +270,12 @@
       Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Token disalin!', showConfirmButton: false, timer: 1500 });
     }
 
-    // 🔌 PUBNUB REALTIME CONNECTION
+    // 🔌 PUBNUB REALTIME CONNECTION (Menggunakan PubNub v7)
     const pubnub = new PubNub({
       publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87",
       subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659",
-      uuid: "dashboard_pengawas_" + Math.floor(Math.random() * 1000)
+      uuid: "dashboard_pengawas_" + Math.floor(Math.random() * 1000),
+      heartbeatInterval: 30
     });
 
     pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
@@ -320,10 +315,14 @@
 
     pubnub.addListener({
       status: function(statusEvent) {
-        if (statusEvent.category === "PNConnectedCategory") {
+        if (statusEvent.category === "PNConnectedCategory" || statusEvent.category === "PNReconnectedCategory") {
           const statusBadge = document.getElementById('connection-status');
           statusBadge.textContent = "Terhubung (Live)";
           statusBadge.className = "text-xs px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-semibold";
+        } else if (statusEvent.category === "PNNetworkIssuesCategory" || statusEvent.category === "PNDisconnectedCategory") {
+          const statusBadge = document.getElementById('connection-status');
+          statusBadge.textContent = "Menghubungkan ulang...";
+          statusBadge.className = "text-xs px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 font-semibold";
         }
       },
       message: function(msg) {
@@ -354,7 +353,6 @@
       
       const keys = Object.keys(studentLogs);
       
-      // Filter keys berdasarkan ruangan yang dipilih pengawas
       const filteredKeys = keys.filter(k => {
         if (selectedRoom === 'ALL') return true;
         return studentLogs[k].room === selectedRoom;
@@ -416,6 +414,8 @@
     }
 
     function handleLogout() {
+      pubnub.unsubscribeAll();
+      // Mengarahkan kembali ke halaman login (jika ada file login.html, atau refresh ke halaman awal)
       window.location.href = "login.html";
     }
 
