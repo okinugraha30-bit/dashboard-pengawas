@@ -36,26 +36,30 @@
       </div>
       
       <div class="flex items-center gap-3 flex-wrap">
-        <!-- ☕ TOMBOL PUTUS NYAMBUNG / JEDA GLOBAL DARI DASHBOARD -->
-        <button id="global-pause-btn" onclick="toggleGlobalPause()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition flex items-center gap-2 shadow-sm">
-          ☕ <span id="global-pause-text">Mode Jeda: MATI</span>
-        </button>
-
-        <!-- TOMBOL UPLOAD EXCEL PESERTA -->
+        <!-- 📁 TOMBOL UPLOAD EXCEL PESERTA -->
         <label class="bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2 rounded-lg cursor-pointer transition flex items-center gap-2 shadow-sm">
           📁 Upload Data Ruang (Excel)
           <input type="file" id="excel-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleExcelUpload(event)">
         </label>
 
-        <!-- TOKEN KODE TOTP 3 MENIT -->
+        <!-- ☕ TOMBOL PUTUS NYAMBUNG / JEDA GLOBAL -->
+        <button id="global-pause-btn" onclick="toggleGlobalPause()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg transition flex items-center gap-2 shadow-sm">
+          ☕ <span id="global-pause-text">Mode Jeda: MATI</span>
+        </button>
+
+        <!-- 🔑 TOKEN KODE TOTP & TIMER 3 MENIT -->
         <div class="bg-blue-50 border border-blue-200 px-4 py-2 rounded-lg flex items-center gap-3">
           <div class="text-right">
-            <div class="text-xs text-blue-600 font-medium">Token TOTP Pengawas:</div>
+            <div class="flex items-center justify-end gap-2">
+              <span class="text-xs text-blue-600 font-medium">Token TOTP Pengawas</span>
+              <span id="totp-timer" class="text-[10px] bg-blue-200 text-blue-800 font-bold px-1.5 py-0.5 rounded">03:00</span>
+            </div>
             <div id="totp-display" class="text-xl font-mono font-bold text-blue-900 tracking-wider">------</div>
           </div>
           <button onclick="copyTotpToken()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2.5 py-1.5 rounded font-medium transition">Salin</button>
         </div>
 
+        <!-- TOMBOL LOGOUT -->
         <button onclick="handleLogout()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition">
           Logout
         </button>
@@ -123,7 +127,6 @@
     let studentLogs = JSON.parse(localStorage.getItem('cbt_student_logs') || '{}');
     let isGlobalPaused = localStorage.getItem('cbt_global_paused') === 'true';
 
-    // Inisialisasi tampilan tombol jeda global
     const globalBtn = document.getElementById('global-pause-btn');
     const globalTxt = document.getElementById('global-pause-text');
     if (isGlobalPaused) {
@@ -183,11 +186,18 @@
       reader.readAsArrayBuffer(file);
     }
 
-    // 🔑 ALGORITMA TOTP 3 MENIT
+    // 🔑 ALGORITMA TOTP 3 MENIT & TIMER MUNDUR
     const SECRET_SALT = "CBT_SECRET_KEY_2026";
     function updateTOTP() {
       const epochSec = Math.floor(Date.now() / 1000);
       const timeStep = Math.floor(epochSec / 180);
+      
+      // Hitung sisa detik menuju pergantian token berikutnya (siklus 180 detik / 3 menit)
+      const secondsRemaining = 180 - (epochSec % 180);
+      const minStr = String(Math.floor(secondsRemaining / 60)).padStart(2, '0');
+      const secStr = String(secondsRemaining % 60).padStart(2, '0');
+      document.getElementById('totp-timer').textContent = `${minStr}:${secStr}`;
+
       let hash = 0;
       const str = SECRET_SALT + timeStep;
       for (let i = 0; i < str.length; i++) {
@@ -215,7 +225,6 @@
 
     pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
 
-    // ☕ FUNGSI MENGIRIM STATUS JEDA KE SEMUA SISWA VIA PUBNUB
     function toggleGlobalPause() {
       isGlobalPaused = !isGlobalPaused;
       localStorage.setItem('cbt_global_paused', isGlobalPaused);
@@ -231,7 +240,6 @@
         txt.textContent = "Mode Jeda: MATI";
       }
 
-      // Siarkan sinyal jeda ke seluruh perangkat siswa secara real-time
       pubnub.publish({
         channel: "cbt_monitoring_channel",
         message: {
@@ -278,7 +286,6 @@
       }
     });
 
-    // 📊 RENDER TABEL DATA
     function renderTable() {
       const tbody = document.getElementById('violation-table-body');
       const keys = Object.keys(studentLogs);
