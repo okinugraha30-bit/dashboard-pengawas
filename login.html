@@ -414,13 +414,29 @@
     }
 
     function handleLogout() {
-      pubnub.unsubscribeAll();
-      // Mengarahkan kembali ke halaman login (jika ada file login.html, atau refresh ke halaman awal)
-      window.location.href = "login.html";
-    }
+      // Hentikan koneksi pubnub
+      if (typeof pubnub !== 'undefined') {
+        pubnub.unsubscribeAll();
+      }
+      
+      // Bersihkan cache sesi lokal dashboard jika diperlukan (opsional, biarkan log tetap ada jika ingin aman)
+      // localStorage.removeItem('cbt_global_paused');
 
-    updateRoomFilterDropdown();
-    renderTable();
+      Swal.fire({
+        title: 'Keluar Dashboard?',
+        text: "Anda akan keluar dari sesi pengawasan.",
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Ya, Keluar'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          // Cek apakah ada file login.html, jika tidak arahkan ke halaman utama atau Github Pages root
+          window.location.href = "./index.html"; 
+        }
+      });
+    }
   </script>
 </body>
 </html>
