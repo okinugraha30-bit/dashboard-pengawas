@@ -154,7 +154,31 @@
             }
         }
 
-        function handleIncomingViolation(data) {
+        function function handleIncomingViolation(data) {
+    const rawName = data.studentName || "";
+    // Bersihkan nama dari status tambahan seperti " - (Log out)"
+    const cleanName = rawName.split(' - ')[0].trim();
+    const lookupKey = cleanName.toLowerCase();
+    
+    // Ambil ruangan dari map excel berdasarkan nama yang bersih, atau fallback ke data
+    const assignedRoom = studentRoomMap[lookupKey] || data.roomName || "Ruang Ujian";
+
+    // Simpan menggunakan cleanName sebagai kunci utama agar konsisten dan bersih
+    if (!studentLogs[cleanName]) {
+        studentLogs[cleanName] = { name: cleanName, room: assignedRoom, reason: data.reason, count: data.count, time: data.timestamp, status: "LOCKED" };
+    } else {
+        studentLogs[cleanName].room = assignedRoom;
+        studentLogs[cleanName].reason = data.reason;
+        studentLogs[cleanName].count = data.count;
+        studentLogs[cleanName].time = data.timestamp;
+        if (studentLogs[cleanName].status !== "FORCE_SUBMITTED") studentLogs[cleanName].status = "LOCKED";
+    }
+    
+    saveData();
+    if (typeof rebuildRoomDropdown === 'function') rebuildRoomDropdown();
+    if (typeof updateStats === 'function') updateStats(); 
+    if (typeof renderTable === 'function') renderTable();
+}olation(data) {
             const sName = data.studentName;
             const assignedRoom = studentRoomMap[sName.toLowerCase()] || "Ruang 01";
             
@@ -250,38 +274,51 @@
         }
 
         function importExcelRuangan(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
-                const rooms = new Set();
-                let count = 0;
-                for (let i = 1; i < jsonData.length; i++) {
-                    const row = jsonData[i];
-                    if (row && row[0] && row[1]) {
-                        const sNameKey = row[0].toString().trim().toLowerCase();
-                        const sRoomName = row[1].toString().trim();
-                        studentRoomMap[sNameKey] = sRoomName;
-                        rooms.add(sRoomName);
-                        
-                        // Update juga room pada log yang sudah ada jika namanya cocok
-                        Object.keys(studentLogs).forEach(k => {
-                            if (k.toLowerCase() === sNameKey) {
-                                studentLogs[k].room = sRoomName;
-                            }
-                        });
-                        count++;
-                    }
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+        const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
+        const rooms = new Set();
+        let count = 0;
+        
+        for (let i = 1; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            if (row && row[0] && row[1]) {
+                // Pastikan kolom 0 adalah Nama Siswa dan kolom 1 adalah Ruangan
+                let sName = row[0].toString().trim();
+                let sRoom = row[1].toString().trim();
+                
+                // Jika terbalik (kolom 0 malah berisi kata "Ruang"), tukar posisinya
+                if (sName.toLowerCase().includes('ruang') && !sRoom.toLowerCase().includes('ruang')) {
+                    let temp = sName; sName = sRoom; sRoom = temp;
                 }
-                saveData();
-                rebuildRoomDropdown();
-                updateStats();
-                renderTable();
-                alert(`Berhasil impor ${count} siswa & ${rooms.size} ruangan! Data tersimpan permanen.`);
-            };
-            reader.readAsArrayBuffer(file);
+
+                const sNameKey = sName.toLowerCase();
+                studentRoomMap[sNameKey] = sRoom;
+                rooms.add(sRoom);
+                
+                // Perbarui juga data log siswa yang sudah terlanjur masuk
+                Object.keys(studentLogs).forEach(k => {
+                    const cleanExistingName = k.split(' - ')[0].trim().toLowerCase();
+                    if (cleanExistingName === sNameKey) {
+                        studentLogs[k].room = sRoom;
+                    }
+                });
+                count++;
+            }
+        
+        saveData();
+        // Sinkronkan ke Pengawas jika menggunakan penyimpanan yang sama atau PubNub
+        if (typeof rebuildRoomDropdown === 'function') rebuildRoomDropdown();
+        if (typeof updateStats === 'function') updateStats();
+        if (typeof renderTable === 'function') renderTable();
+        
+        alert(`Berhasil impor ${count} data siswa. Zaira dan siswa lainnya sekarang sesuai dengan kolom Excel!`);
+    };
+    reader.readAsArrayBuffer(file);
+}
         }
 
         function exportToExcel() {
