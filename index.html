@@ -22,20 +22,18 @@
                 <h2 class="text-2xl font-bold text-slate-100">Login Proctor Utama</h2>
                 <p class="text-xs text-slate-400">Akses Penuh Kontrol & Monitoring CBT</p>
             </div>
-            <form onsubmit="handleLogin(event)" class="space-y-4">
-                <input type="text" style="display:none" name="fakeusernameremembered">
-                <input type="password" style="display:none" name="fakepasswordremembered">
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Username</label>
-                    <input type="text" id="username" required autocomplete="off" data-lpignore="true" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 outline-none focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Password</label>
-                    <input type="password" id="password" required autocomplete="new-password" data-lpignore="true" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 outline-none focus:border-blue-500">
-                </div>
-                <div id="loginErrorMessage" class="text-rose-400 text-xs text-center hidden font-medium">Username atau Password salah!</div>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg transition shadow-lg shadow-blue-600/30">Masuk Proctor Utama</button>
-            </form>
+           <form onsubmit="handleLogin(event)" autocomplete="off" class="space-y-4">
+    <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Username</label>
+        <input type="text" id="username" required autocomplete="off" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 outline-none focus:border-emerald-500">
+    </div>
+    <div>
+        <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Password</label>
+        <input type="password" id="password" required autocomplete="new-password" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 outline-none focus:border-emerald-500">
+    </div>
+    <div id="loginErrorMessage" class="text-rose-400 text-xs text-center hidden font-medium">Username atau Password salah!</div>
+    <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-lg transition">Masuk</button>
+</form>
         </div>
     </div>
 
