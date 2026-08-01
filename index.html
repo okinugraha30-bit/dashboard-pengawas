@@ -7,514 +7,425 @@
     
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- SweetAlert2 -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- FontAwesome Icon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- PubNub SDK -->
     <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
-    <!-- SheetJS / XLSX (Membaca & Memproses File Excel) -->
+    <!-- SheetJS (Excel Reader & Writer) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-    <style>
-        body { background-color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
-    </style>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
-<body class="p-4 md:p-6 text-slate-800">
+<body class="bg-slate-100 font-sans min-h-screen text-slate-800 pb-12">
 
-    <!-- HIDDEN FILE INPUT FOR EXCEL -->
-    <input type="file" id="excelFileInput" accept=".xlsx, .xls" class="hidden">
-
-    <!-- HEADER BAR -->
-    <div class="max-w-7xl mx-auto bg-white p-4 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-wrap items-center justify-between gap-4">
-        <div class="flex items-center gap-3">
-            <div class="text-3xl">🛡️</div>
-            <div>
-                <h1 class="text-xl font-bold text-slate-900 flex items-center gap-2">
-                    Dashboard Pengawas CBT 
-                    <span id="connection-status" class="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-semibold">Terhubung (Live)</span>
-                </h1>
-                <p class="text-xs text-slate-500">Sistem Pemantauan Pelanggaran Ujian Siswa Berbasis Real-Time</p>
-            </div>
-        </div>
-
-        <div class="flex items-center gap-3 flex-wrap">
-            <button id="btn-upload-excel" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg flex items-center gap-2 transition">
-                📂 Upload Data Ruang (Excel)
-            </button>
-            <button id="btn-toggle-pause" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition">
-                🔓 Mode Jeda: NONAKTIF
-            </button>
-            
-            <!-- TOTP TOKEN BOX -->
-            <div class="bg-slate-100 border border-slate-300 px-3 py-1.5 rounded-lg text-center flex items-center gap-3">
-                <div class="text-left">
-                    <div class="text-[10px] uppercase font-bold text-slate-500">Token TOTP (<span id="totp-timer">180s</span>)</div>
-                    <div id="totp-code" class="text-lg font-mono font-bold tracking-wider text-indigo-700">------</div>
+    <!-- HEADER / NAVBAR -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 text-white p-3 rounded-xl shadow-md">
+                    <i class="fa-solid font-bold text-xl fa-shield-halved"></i>
                 </div>
-                <button onclick="copyTOTP()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-2.5 py-1 rounded font-semibold">Salin</button>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-xl font-bold text-slate-900">Dashboard Pengawas CBT</h1>
+                        <span id="connection-status" class="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-emerald-300">Terhubung (Live)</span>
+                    </div>
+                    <p class="text-xs text-slate-500">Sistem Pemantauan Pelanggaran Ujian Siswa Berbasis Real-Time</p>
+                </div>
             </div>
 
-            <button onclick="logout()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold px-3 py-2.5 rounded-lg">Logout</button>
-        </div>
-    </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <!-- Upload Excel Ruangan -->
+                <label for="excel-upload" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded-lg cursor-pointer flex items-center gap-2 transition shadow-sm">
+                    <i class="fa-solid fa-file-excel"></i> Upload Data Ruang (Excel)
+                </label>
+                <input type="file" id="excel-upload" accept=".xlsx, .xls" class="hidden">
 
-    <!-- MAIN DASHBOARD CONTENT -->
-    <div class="max-w-7xl mx-auto space-y-6">
-
-        <!-- CARDS RINGKASAN STATISTIK -->
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
-            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <span class="text-xs font-semibold text-slate-500 uppercase">Total Siswa Terpantau</span>
-                <div id="stat-total-siswa" class="text-3xl font-extrabold text-slate-800 mt-1">0</div>
-            </div>
-
-            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <span class="text-xs font-semibold text-slate-500 uppercase">Total Pelanggaran</span>
-                <div id="stat-total-pelanggaran" class="text-3xl font-extrabold text-red-600 mt-1">0</div>
-            </div>
-
-            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <span class="text-xs font-semibold text-slate-500 uppercase">Status Database Ruangan</span>
-                <div id="stat-status-db" class="text-sm font-bold text-amber-600 mt-2">Belum Diunggah</div>
-            </div>
-
-            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <label for="filter-ruangan" class="text-xs font-semibold text-slate-500 uppercase block mb-1">Filter Ruang Ujian</label>
-                <select id="filter-ruangan" class="w-full bg-slate-50 border border-slate-300 text-sm rounded-lg p-2 focus:ring-indigo-500 focus:border-indigo-500 font-semibold text-slate-700">
-                    <option value="ALL">Semua Ruangan</option>
-                </select>
-            </div>
-
-            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center gap-2">
-                <button onclick="exportLaporanExcel()" class="bg-emerald-700 hover:bg-emerald-800 text-white font-semibold text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-2">
-                    📊 Ekspor Laporan Excel
+                <!-- Mode Jeda / Freeze -->
+                <button id="btn-toggle-pause" class="bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-2 transition shadow-sm">
+                    <i class="fa-solid fa-lock"></i> Mode Jeda: NONAKTIF
                 </button>
-                <button onclick="resetLogs()" class="bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-semibold text-xs py-2 px-3 rounded-lg">
-                    🗑️ Reset Log Data Siswa
-                </button>
+
+                <!-- Box Token TOTP -->
+                <div class="bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg text-center flex items-center gap-2">
+                    <div>
+                        <div class="text-[10px] text-slate-400 font-bold tracking-wider">TOKEN TOTP (<span id="totp-timer">180s</span>)</div>
+                        <div id="totp-code" class="text-lg font-mono font-bold text-blue-700 tracking-wider">------</div>
+                    </div>
+                    <button id="btn-copy-totp" class="bg-blue-600 hover:bg-blue-700 text-white text-xs px-2 py-1 rounded transition">Salin</button>
+                </div>
+
+                <button onclick="location.reload()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg transition">Logout</button>
             </div>
         </div>
+    </header>
 
-        <!-- TABEL LOG PELANGGARAN -->
+    <!-- CONTAINER UTAMA -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
+
+        <!-- RINGKASAN STATISTIK -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Siswa Terpantau</div>
+                <div id="stat-total-siswa" class="text-3xl font-extrabold text-slate-800">0</div>
+            </div>
+            
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Total Pelanggaran</div>
+                <div id="stat-total-pelanggaran" class="text-3xl font-extrabold text-rose-600">0</div>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
+                <div class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-1">Status Database Ruangan</div>
+                <div id="stat-database-ruangan" class="text-sm font-bold text-slate-600 mt-2">Belum Upload Excel</div>
+            </div>
+
+            <!-- FILTER RUANG UJIAN & AKSI -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div>
+                    <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">Filter Ruang Ujian</label>
+                    <select id="filter-ruangan" class="w-full bg-slate-50 border border-slate-300 text-slate-800 text-sm rounded-lg p-2 focus:ring-blue-500 focus:border-blue-500 font-semibold">
+                        <option value="ALL">Semua Ruangan</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- TOMBOL AKSI LOG -->
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-bold text-slate-800">Daftar Aktivitas & Pelanggaran Siswa</h2>
+            <div class="flex gap-2">
+                <button id="btn-export-excel" class="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-file-export"></i> Ekspor Laporan Excel
+                </button>
+                <button id="btn-reset-log" class="bg-rose-100 hover:bg-rose-200 text-rose-700 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-trash-can"></i> Reset Log Data Siswa
+                </button>
+            </div>
+        </div>
+
+        <!-- TABEL DATA PELANGGARAN -->
         <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-                <h2 class="font-bold text-slate-800 text-base">Daftar Aktivitas & Pelanggaran Siswa</h2>
-                <span id="filter-indicator-text" class="text-xs text-slate-500 italic">*Menampilkan seluruh ruangan</span>
-            </div>
-
             <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm text-slate-600">
-                    <thead class="bg-slate-100 text-slate-700 uppercase text-xs font-bold border-b border-slate-200">
-                        <tr>
-                            <th class="py-3 px-4">Waktu</th>
-                            <th class="py-3 px-4">Nama Siswa / Username</th>
-                            <th class="py-3 px-4">Ruangan</th>
-                            <th class="py-3 px-4">Pelanggaran</th>
-                            <th class="py-3 px-4 text-center">Status / Aksi</th>
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                            <th class="py-3.5 px-4">Waktu</th>
+                            <th class="py-3.5 px-4">Nama Siswa / Username</th>
+                            <th class="py-3.5 px-4">Ruangan</th>
+                            <th class="py-3.5 px-4">Pelanggaran</th>
+                            <th class="py-3.5 px-4 text-center">Status / Aksi</th>
                         </tr>
                     </thead>
-                    <tbody id="table-log-body" class="divide-y divide-slate-200">
-                        <tr id="row-empty">
-                            <td colspan="5" class="py-8 text-center text-slate-400 italic">Belum ada aktivitas/pelanggaran terdeteksi.</td>
+                    <tbody id="violation-table-body" class="divide-y divide-slate-100 text-sm">
+                        <!-- Data dinamis PubNub akan muncul di sini -->
+                        <tr id="empty-row">
+                            <td colspan="5" class="py-8 text-center text-slate-400 italic">Belum ada aktivitas atau pelanggaran terdeteksi...</td>
                         </tr>
                     </tbody>
                 </table>
             </div>
         </div>
+    </main>
 
-    </div>
-
-    <!-- JAVASCRIPT LOGIC -->
+    <!-- SCRIPT LOGIKA DASHBOARD -->
     <script>
+        // ==========================================
+        // 1. INISIALISASI & CONFIG PUBNUB
+        // ==========================================
+        const PUB_KEY = "pub-c-5618932f-1208-4f99-81ed-334268b10f87";
+        const SUB_KEY = "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659";
+        const CHANNEL_NAME = "cbt_monitoring_channel";
         const SECRET_SALT = "CBT_SECRET_KEY_2026";
-        let logsData = JSON.parse(localStorage.getItem('cbt_logs_data') || '[]');
-        let forcedSubmittedStudents = JSON.parse(localStorage.getItem('cbt_forced_students') || '[]');
-        let isPaused = localStorage.getItem('cbt_global_paused') === 'true';
 
-        // PubNub Setup
         const pubnub = new PubNub({
-            publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87",
-            subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659",
+            publishKey: PUB_KEY,
+            subscribeKey: SUB_KEY,
             uuid: "dashboard_pengawas_" + Math.random().toString(36).substring(2, 7)
         });
 
-        pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
+        let violationLogs = JSON.parse(localStorage.getItem('cbt_dashboard_logs') || '[]');
+        let studentRoomMap = JSON.parse(localStorage.getItem('cbt_student_room_map') || '{}');
+        let isGlobalPaused = localStorage.getItem('cbt_global_paused') === 'true';
 
-        document.addEventListener("DOMContentLoaded", function() {
-            updatePauseButtonUI();
-            initRoomDatabaseUI();
-            renderTableLogs();
-            startTOTPGenerator();
+        // Helper Normalisasi Nama Siswa
+        function normalizeName(str) {
+            return String(str || '').toLowerCase().replace(/[^a-z0-9]/g, '').trim();
+        }
 
-            document.getElementById('btn-upload-excel').addEventListener('click', () => {
-                document.getElementById('excelFileInput').click();
-            });
+        // ==========================================
+        // 2. LOGIKA EXCEL & MAPPING RUANGAN
+        // ==========================================
+        document.getElementById('excel-upload').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
 
-            document.getElementById('btn-toggle-pause').addEventListener('click', toggleGlobalPause);
-            document.getElementById('filter-ruangan').addEventListener('change', renderTableLogs);
+            const reader = new FileReader();
+            reader.onload = function(evt) {
+                const data = new Uint8Array(evt.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                const jsonData = XLSX.utils.sheet_to_json(worksheet);
+
+                studentRoomMap = {};
+                const roomSet = new Set();
+
+                jsonData.forEach(row => {
+                    // Mendukung header: Nama/Siswa dan Ruang/Ruangan
+                    const rawName = row['Nama'] || row['Nama Siswa'] || row['Siswa'] || row['NAMA'] || '';
+                    const rawRoom = row['Ruang'] || row['Ruangan'] || row['RUANG'] || 'Ruang Umum';
+
+                    if (rawName) {
+                        studentRoomMap[normalizeName(rawName)] = rawRoom.trim();
+                        roomSet.add(rawRoom.trim());
+                    }
+                });
+
+                localStorage.setItem('cbt_student_room_map', JSON.stringify(studentRoomMap));
+                updateRoomFilterDropdown(Array.from(roomSet));
+                updateRoomStatusBadge(Object.keys(studentRoomMap).length);
+                renderTable();
+
+                Swal.fire('Berhasil!', `Data ${Object.keys(studentRoomMap).length} siswa berhasil dimuat.`, 'success');
+            };
+            reader.readAsArrayBuffer(file);
         });
+
+        function getRoomForStudent(studentName) {
+            const clean = normalizeName(studentName);
+            if (studentRoomMap[clean]) return studentRoomMap[clean];
+
+            // Cek pencocokan sebagian (fuzzy match)
+            for (let nameKey in studentRoomMap) {
+                if (clean.includes(nameKey) || nameKey.includes(clean)) {
+                    return studentRoomMap[nameKey];
+                }
+            }
+            return "Ruang Umum";
+        }
+
+        function updateRoomFilterDropdown(rooms) {
+            const select = document.getElementById('filter-ruangan');
+            select.innerHTML = '<option value="ALL">Semua Ruangan</option>';
+            rooms.forEach(room => {
+                select.innerHTML += `<option value="${room}">${room}</option>`;
+            });
+        }
+
+        function updateRoomStatusBadge(total) {
+            const el = document.getElementById('stat-database-ruangan');
+            if (total > 0) {
+                el.className = "text-sm font-bold text-emerald-600 mt-2";
+                el.innerText = `Aktif (${total} Siswa)`;
+            } else {
+                el.className = "text-sm font-bold text-slate-600 mt-2";
+                el.innerText = "Belum Upload Excel";
+            }
+        }
+
+        // ==========================================
+        // 3. PUBNUB SUBSCRIBER & RENDER LOGS
+        // ==========================================
+        pubnub.subscribe({ channels: [CHANNEL_NAME] });
 
         pubnub.addListener({
             message: function(msg) {
                 const data = msg.message;
-                if (data && data.type === "VIOLATION") {
-                    handleIncomingViolation(data);
+                if (!data) return;
+
+                if (data.type === "VIOLATION") {
+                    const room = getRoomForStudent(data.studentName);
+                    const logItem = {
+                        id: Date.now() + "_" + Math.random().toString(36).substring(2, 5),
+                        timestamp: data.timestamp || new Date().toLocaleTimeString(),
+                        studentName: data.studentName,
+                        room: room,
+                        reason: data.reason,
+                        count: data.count
+                    };
+
+                    violationLogs.unshift(logItem);
+                    localStorage.setItem('cbt_dashboard_logs', JSON.stringify(violationLogs));
+                    renderTable();
                 }
             }
         });
 
-        function handleIncomingViolation(data) {
-            const roomName = getStudentRoom(data.studentName);
-            const newEntry = {
-                id: Date.now() + Math.random(),
-                timestamp: data.timestamp || new Date().toLocaleTimeString(),
-                studentName: data.studentName,
-                room: roomName,
-                reason: data.reason,
-                count: data.count || 1
-            };
+        function renderTable() {
+            const tbody = document.getElementById('violation-table-body');
+            const selectedRoom = document.getElementById('filter-ruangan').value;
 
-            logsData.unshift(newEntry);
-            localStorage.setItem('cbt_logs_data', JSON.stringify(logsData));
-            renderTableLogs();
-
-            const Toast = Swal.mixin({
-                toast: true, position: 'top-end', showConfirmButton: false, timer: 3000
+            const filteredLogs = violationLogs.filter(log => {
+                if (selectedRoom === "ALL") return true;
+                return log.room === selectedRoom;
             });
-            Toast.fire({ icon: 'warning', title: `Pelanggaran: ${data.studentName}` });
-        }
 
-        document.getElementById('excelFileInput').addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
+            // Update Statistik Total
+            document.getElementById('stat-total-pelanggaran').innerText = filteredLogs.length;
+            const uniqueStudents = new Set(filteredLogs.map(l => normalizeName(l.studentName)));
+            document.getElementById('stat-total-siswa').innerText = uniqueStudents.size;
 
-            if (typeof XLSX === 'undefined') {
-                Swal.fire('Error', 'Library XLSX belum terpasang dengan benar.', 'error');
+            if (filteredLogs.length === 0) {
+                tbody.innerHTML = `<tr id="empty-row"><td colspan="5" class="py-8 text-center text-slate-400 italic">Belum ada data pelanggaran untuk filter ini...</td></tr>`;
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = function(evt) {
-                try {
-                    const data = new Uint8Array(evt.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
-
-                    if (!jsonData || jsonData.length === 0) {
-                        throw new Error("File Excel kosong.");
-                    }
-
-                    let roomMapping = {};
-                    let detectedRooms = new Set();
-
-                    jsonData.forEach(row => {
-                        let nameKey = Object.keys(row).find(k => k.trim().toLowerCase().includes('nama'));
-                        let roomKey = Object.keys(row).find(k => k.trim().toLowerCase().includes('ruang'));
-
-                        if (nameKey && roomKey && row[nameKey]) {
-                            let sName = String(row[nameKey]).trim();
-                            let rName = String(row[roomKey]).trim();
-
-                            if (sName && rName) {
-                                roomMapping[sName.toLowerCase()] = rName;
-                                detectedRooms.add(rName);
-                            }
-                        }
-                    });
-
-                    if (Object.keys(roomMapping).length === 0) {
-                        throw new Error("Gagal menemukan kolom 'Nama Siswa' atau 'Ruang Ujian'.");
-                    }
-
-                    localStorage.setItem('cbt_room_database', JSON.stringify(roomMapping));
-                    localStorage.setItem('cbt_detected_rooms', JSON.stringify(Array.from(detectedRooms)));
-
-                    logsData.forEach(log => {
-                        log.room = getStudentRoom(log.studentName);
-                    });
-                    localStorage.setItem('cbt_logs_data', JSON.stringify(logsData));
-
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Upload Berhasil!',
-                        text: `Database ${Object.keys(roomMapping).length} siswa & ${detectedRooms.size} ruangan berhasil dimuat.`
-                    }).then(() => {
-                        initRoomDatabaseUI();
-                        renderTableLogs();
-                    });
-
-                } catch (err) {
-                    console.error(err);
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Gagal Membaca File',
-                        text: err.message || 'Terjadi kesalahan saat memproses file excel.'
-                    });
-                }
-            };
-
-            reader.readAsArrayBuffer(file);
-            this.value = '';
-        });
-
-        function getStudentRoom(studentName) {
-            const dbRaw = localStorage.getItem('cbt_room_database');
-            if (!dbRaw) return "Ruang Umum";
-
-            try {
-                const roomDb = JSON.parse(dbRaw);
-                const cleanName = String(studentName).trim().toLowerCase();
-
-                if (roomDb[cleanName]) return roomDb[cleanName];
-
-                for (let keyInDb in roomDb) {
-                    if (cleanName.includes(keyInDb) || keyInDb.includes(cleanName)) {
-                        return roomDb[keyInDb];
-                    }
-                }
-            } catch(e) {}
-
-            return "Ruang Umum";
-        }
-
-        function initRoomDatabaseUI() {
-            const dbRaw = localStorage.getItem('cbt_room_database');
-            const roomsRaw = localStorage.getItem('cbt_detected_rooms');
-            const statusEl = document.getElementById('stat-status-db');
-            const selectEl = document.getElementById('filter-ruangan');
-
-            if (dbRaw && roomsRaw) {
-                const roomDb = JSON.parse(dbRaw);
-                const rooms = JSON.parse(roomsRaw);
-
-                statusEl.innerHTML = `<span class="text-emerald-600">Aktif (${Object.keys(roomDb).length} Siswa)</span>`;
-
-                selectEl.innerHTML = '<option value="ALL">Semua Ruangan</option>';
-                rooms.sort().forEach(r => {
-                    const opt = document.createElement('option');
-                    opt.value = r;
-                    opt.textContent = r;
-                    selectEl.appendChild(opt);
-                });
-            } else {
-                statusEl.innerHTML = `<span class="text-amber-600">Belum Diunggah</span>`;
-            }
-        }
-
-        function renderTableLogs() {
-            const tbody = document.getElementById('table-log-body');
-            const filterRoom = document.getElementById('filter-ruangan').value;
-            const filterTextEl = document.getElementById('filter-indicator-text');
-
-            tbody.innerHTML = '';
-
-            let filtered = logsData;
-            if (filterRoom !== 'ALL') {
-                filtered = logsData.filter(item => item.room === filterRoom);
-                filterTextEl.textContent = `*Menampilkan filter: ${filterRoom}`;
-            } else {
-                filterTextEl.textContent = `*Menampilkan seluruh ruangan`;
-            }
-
-            const uniqueStudents = new Set(logsData.map(l => l.studentName.toLowerCase()));
-            document.getElementById('stat-total-siswa').textContent = uniqueStudents.size;
-            document.getElementById('stat-total-pelanggaran').textContent = logsData.length;
-
-            if (filtered.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="5" class="py-8 text-center text-slate-400 italic">Tidak ada data pelanggaran untuk ditampilkan.</td>
-                    </tr>
-                `;
-                return;
-            }
-
-            filtered.forEach(log => {
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
-                
-                const safeName = log.studentName.replace(/'/g, "\\'");
-                const isForced = forcedSubmittedStudents.includes(log.studentName.toLowerCase());
-
-                let actionButton = isForced 
-                    ? `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-700">FINISHED (FORCED)</span>`
-                    : `<button onclick="sendForceSubmitCommand('${safeName}')" class="text-xs bg-red-600 hover:bg-red-700 text-white font-bold px-2.5 py-1 rounded transition shadow-sm" title="Paksa Submit Ujian Siswa Ini">
-                        🚨 Force Submit
-                       </button>`;
-
-                tr.innerHTML = `
-                    <td class="py-3 px-4 text-xs font-mono text-slate-500">${log.timestamp}</td>
+            tbody.innerHTML = filteredLogs.map(log => `
+                <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                    <td class="py-3 px-4 font-mono text-xs text-slate-500">${log.timestamp}</td>
                     <td class="py-3 px-4 font-bold text-slate-800">${log.studentName}</td>
                     <td class="py-3 px-4">
-                        <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                            ${log.room}
-                        </span>
+                        <span class="bg-slate-100 text-slate-700 text-xs px-2.5 py-1 rounded-full border border-slate-200 font-medium">${log.room}</span>
                     </td>
-                    <td class="py-3 px-4 text-xs text-red-600 font-semibold">${log.reason}</td>
+                    <td class="py-3 px-4 text-rose-600 font-semibold text-xs">${log.reason}</td>
                     <td class="py-3 px-4 text-center">
-                        <div class="flex items-center justify-center gap-1.5">
-                            ${actionButton}
-                            <button onclick="deleteSingleLog(${log.id})" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded border border-slate-200">
-                                Hapus
-                            </button>
-                        </div>
+                        <button onclick="sendForceSubmit('${log.studentName.replace(/'/g, "\\'")}')" class="bg-rose-600 hover:bg-rose-700 text-white text-xs px-2.5 py-1 rounded font-semibold transition shadow-sm mr-1">
+                            <i class="fa-solid fa-paper-plane mr-1"></i> Force Submit
+                        </button>
+                        <button onclick="deleteLog('${log.id}')" class="bg-slate-200 hover:bg-slate-300 text-slate-600 text-xs px-2 py-1 rounded transition">
+                            Hapus
+                        </button>
                     </td>
-                `;
-                tbody.appendChild(tr);
-            });
+                </tr>
+            `).join('');
         }
 
-        function sendForceSubmitCommand(targetStudentName) {
+        document.getElementById('filter-ruangan').addEventListener('change', renderTable);
+
+        // ==========================================
+        // 4. FORCE SUBMIT COMMAND
+        // ==========================================
+        window.sendForceSubmit = function(studentName) {
             Swal.fire({
-                title: 'Konfirmasi Submit Paksa',
-                html: `Apakah Anda yakin ingin menyelesaikan ujian <b>${targetStudentName}</b> secara paksa?`,
+                title: 'Hentikan Ujian Siswa?',
+                text: `Kirim perintah Force Submit untuk "${studentName}"? Ujian siswa akan otomatis di-submit seketika.`,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc2626',
-                cancelButtonColor: '#64748b',
-                confirmButtonText: 'Ya, Submit Paksa!',
-                cancelButtonText: 'Batal'
+                confirmButtonText: 'Ya, Paksa Submit!'
             }).then((result) => {
                 if (result.isConfirmed) {
                     pubnub.publish({
-                        channel: "cbt_monitoring_channel",
+                        channel: CHANNEL_NAME,
                         message: {
                             type: "FORCE_SUBMIT_COMMAND",
-                            targetStudent: targetStudentName,
-                            timestamp: new Date().toLocaleTimeString()
+                            targetStudent: studentName
                         }
                     });
-
-                    if (!forcedSubmittedStudents.includes(targetStudentName.toLowerCase())) {
-                        forcedSubmittedStudents.push(targetStudentName.toLowerCase());
-                        localStorage.setItem('cbt_forced_students', JSON.stringify(forcedSubmittedStudents));
-                    }
-
-                    renderTableLogs();
-
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Perintah Terkirim!',
-                        text: `Sinyal submit paksa telah dikirim ke browser ${targetStudentName}.`,
-                        timer: 2000,
-                        showConfirmButton: false
-                    });
+                    Swal.fire('Terkirim!', `Sinyal Force Submit dikirim ke ${studentName}.`, 'success');
                 }
             });
-        }
+        };
 
-        function deleteSingleLog(id) {
-            logsData = logsData.filter(l => l.id !== id);
-            localStorage.setItem('cbt_logs_data', JSON.stringify(logsData));
-            renderTableLogs();
-        }
+        window.deleteLog = function(id) {
+            violationLogs = violationLogs.filter(l => l.id !== id);
+            localStorage.setItem('cbt_dashboard_logs', JSON.stringify(violationLogs));
+            renderTable();
+        };
 
-        function resetLogs() {
+        // ==========================================
+        // 5. GENERATOR TOKEN TOTP 180s (3 MENIT)
+        // ==========================================
+        function updateTOTP() {
+            const epochSec = Math.floor(Date.now() / 1000);
+            const timeStep = Math.floor(epochSec / 180);
+            const remainingSec = 180 - (epochSec % 180);
+
+            let hash = 0;
+            const str = SECRET_SALT + timeStep;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash |= 0;
+            }
+            const generatedCode = (Math.abs(hash % 900000) + 100000).toString();
+
+            document.getElementById('totp-code').innerText = generatedCode;
+            document.getElementById('totp-timer').innerText = remainingSec + "s";
+        }
+        setInterval(updateTOTP, 1000);
+        updateTOTP();
+
+        document.getElementById('btn-copy-totp').addEventListener('click', function() {
+            const code = document.getElementById('totp-code').innerText;
+            navigator.clipboard.writeText(code);
+            Swal.fire({ icon: 'success', title: 'Disalin!', text: `Token ${code} berhasil disalin.`, timer: 1200, showConfirmButton: false });
+        });
+
+        // ==========================================
+        // 6. TOGGLE PAUSE & EXPORT / RESET LOG
+        // ==========================================
+        const btnPause = document.getElementById('btn-toggle-pause');
+        function updatePauseUI() {
+            if (isGlobalPaused) {
+                btnPause.className = "bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-2 transition shadow-sm";
+                btnPause.innerHTML = `<i class="fa-solid fa-pause"></i> Mode Jeda: AKTIF`;
+            } else {
+                btnPause.className = "bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-2 transition shadow-sm";
+                btnPause.innerHTML = `<i class="fa-solid fa-lock"></i> Mode Jeda: NONAKTIF`;
+            }
+        }
+        updatePauseUI();
+
+        btnPause.addEventListener('click', function() {
+            isGlobalPaused = !isGlobalPaused;
+            localStorage.setItem('cbt_global_paused', isGlobalPaused);
+            updatePauseUI();
+
+            pubnub.publish({
+                channel: CHANNEL_NAME,
+                message: {
+                    type: "GLOBAL_PAUSE_SIGNAL",
+                    isPaused: isGlobalPaused
+                }
+            });
+        });
+
+        document.getElementById('btn-reset-log').addEventListener('click', function() {
             Swal.fire({
-                title: 'Hapus Semua Log?',
-                text: "Data pelanggaran yang tercatat akan dibersihkan.",
+                title: 'Bersihkan Seluruh Log?',
+                text: "Data histori pelanggaran di dashboard ini akan dihapus.",
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#dc2626',
-                confirmButtonText: 'Ya, Bersihkan'
+                confirmButtonText: 'Ya, Reset!'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    logsData = [];
-                    forcedSubmittedStudents = [];
-                    localStorage.setItem('cbt_logs_data', JSON.stringify(logsData));
-                    localStorage.setItem('cbt_forced_students', JSON.stringify(forcedSubmittedStudents));
-                    renderTableLogs();
-                    Swal.fire('Bersih!', 'Log pelanggaran telah dikosongkan.', 'success');
+                    violationLogs = [];
+                    localStorage.removeItem('cbt_dashboard_logs');
+                    renderTable();
+                    Swal.fire('Direset!', 'Histori log berhasil dibersihkan.', 'success');
                 }
             });
-        }
+        });
 
-        function exportLaporanExcel() {
-            if (logsData.length === 0) {
-                Swal.fire('Informasi', 'Belum ada data log pelanggaran untuk diekspor.', 'info');
+        document.getElementById('btn-export-excel').addEventListener('click', function() {
+            if (violationLogs.length === 0) {
+                Swal.fire('Kosong', 'Belum ada log pelanggaran untuk diekspor.', 'info');
                 return;
             }
 
-            const exportData = logsData.map((l, index) => ({
-                "No": index + 1,
+            const exportData = violationLogs.map((l, idx) => ({
+                "No": idx + 1,
                 "Waktu": l.timestamp,
                 "Nama Siswa": l.studentName,
-                "Ruang Ujian": l.room,
-                "Jenis Pelanggaran": l.reason
+                "Ruangan": l.room,
+                "Detail Pelanggaran": l.reason
             }));
 
-            const worksheet = XLSX.utils.json_to_sheet(exportData);
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Pelanggaran");
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Laporan Pelanggaran");
+            XLSX.writeFile(wb, `Laporan_Pelanggaran_CBT_${new Date().toISOString().slice(0,10)}.xlsx`);
+        });
 
-            XLSX.writeFile(workbook, `Laporan_Pelanggaran_CBT_${new Date().toISOString().slice(0,10)}.xlsx`);
+        // Load awal data ruangan jika pernah di-upload
+        const savedRooms = Array.from(new Set(Object.values(studentRoomMap)));
+        if (savedRooms.length > 0) {
+            updateRoomFilterDropdown(savedRooms);
+            updateRoomStatusBadge(Object.keys(studentRoomMap).length);
         }
-
-        function startTOTPGenerator() {
-            function updateTOTP() {
-                const epochSec = Math.floor(Date.now() / 1000);
-                const timeStep = Math.floor(epochSec / 180);
-                const remainingSec = 180 - (epochSec % 180);
-
-                let hash = 0;
-                const str = SECRET_SALT + timeStep;
-                for (let i = 0; i < str.length; i++) {
-                    hash = ((hash << 5) - hash) + str.charCodeAt(i);
-                    hash |= 0;
-                }
-                const code = (Math.abs(hash % 900000) + 100000).toString();
-
-                document.getElementById('totp-code').textContent = code;
-                document.getElementById('totp-timer').textContent = remainingSec + "s";
-            }
-
-            updateTOTP();
-            setInterval(updateTOTP, 1000);
-        }
-
-        function copyTOTP() {
-            const code = document.getElementById('totp-code').textContent;
-            navigator.clipboard.writeText(code);
-            Swal.fire({ toast: true, position: 'top-end', icon: 'success', title: 'Token Disalin!', timer: 1500, showConfirmButton: false });
-        }
-
-        function toggleGlobalPause() {
-            isPaused = !isPaused;
-            localStorage.setItem('cbt_global_paused', isPaused ? 'true' : 'false');
-
-            pubnub.publish({
-                channel: "cbt_monitoring_channel",
-                message: {
-                    type: "GLOBAL_PAUSE_SIGNAL",
-                    isPaused: isPaused
-                }
-            });
-
-            updatePauseButtonUI();
-            Swal.fire({
-                icon: isPaused ? 'warning' : 'info',
-                title: isPaused ? 'Mode Jeda Ditingkatkan!' : 'Mode Jeda Dinonaktifkan',
-                text: isPaused ? 'Semua proteksi di browser siswa sementara tidak mengunci.' : 'Proteksi kembali aktif sepenuhnya.',
-                timer: 2000,
-                showConfirmButton: false
-            });
-        }
-
-        function updatePauseButtonUI() {
-            const btn = document.getElementById('btn-toggle-pause');
-            if (isPaused) {
-                btn.textContent = "🔒 Mode Jeda: AKTIF";
-                btn.className = "bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition shadow-inner";
-            } else {
-                btn.textContent = "🔓 Mode Jeda: NONAKTIF";
-                btn.className = "bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition";
-            }
-        }
-
-        function logout() {
-            location.reload();
-        }
+        renderTable();
     </script>
 </body>
 </html>
