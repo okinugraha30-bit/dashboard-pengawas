@@ -109,8 +109,16 @@
                         Log Pelanggaran & Status Siswa
                     </h2>
                 </div>
-                <div class="w-full md:w-72">
-                    <input type="text" id="search-input" oninput="renderTable()" placeholder="Cari nama siswa..." class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                
+                <!-- FILTER & SEARCH CONTAINER -->
+                <div class="w-full md:w-auto flex flex-col sm:flex-row items-center gap-3">
+                    <!-- FILTER RUANGAN -->
+                    <select id="room-filter" onchange="renderTable()" class="w-full sm:w-48 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                        <option value="ALL">Semua Ruangan</option>
+                    </select>
+
+                    <!-- CARI NAMA SISWA -->
+                    <input type="text" id="search-input" oninput="renderTable()" placeholder="Cari nama siswa..." class="w-full sm:w-60 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
                 </div>
             </div>
 
@@ -194,6 +202,33 @@
             return "Umum";
         }
 
+        // UPDATE DROPDOWN FILTER RUANGAN DINAMIS
+        function updateRoomFilterOptions() {
+            const selectEl = document.getElementById('room-filter');
+            const currentSelected = selectEl.value;
+
+            // Kumpulkan daftar ruangan unik dari Excel dan Log Siswa
+            const roomsSet = new Set();
+            
+            Object.values(roomMappingMap).forEach(r => { if(r) roomsSet.add(r); });
+            Object.values(studentDataMap).forEach(s => { if(s.room) roomsSet.add(s.room); });
+
+            // Susun kembali Opsi Select
+            selectEl.innerHTML = `<option value="ALL">Semua Ruangan</option>`;
+            
+            Array.from(roomsSet).sort().forEach(roomName => {
+                const opt = document.createElement('option');
+                opt.value = roomName;
+                opt.textContent = roomName;
+                selectEl.appendChild(opt);
+            });
+
+            // Kembalikan pilihan sebelumnya jika ada
+            if (roomsSet.has(currentSelected)) {
+                selectEl.value = currentSelected;
+            }
+        }
+
         // PUBNUB LISTENER (RECEIVE VIOLATION FROM MOODLE)
         pubnub.addListener({
             message: function(msg) {
@@ -230,6 +265,7 @@
                 }
             }
 
+            updateRoomFilterOptions();
             renderTable();
         }
 
@@ -237,6 +273,7 @@
         function renderTable() {
             const tbody = document.getElementById('monitoring-tbody');
             const searchVal = cleanString(document.getElementById('search-input').value);
+            const selectedRoom = document.getElementById('room-filter').value;
             
             tbody.innerHTML = "";
 
@@ -258,7 +295,10 @@
                     if (student.status === "TERKUNCI") lockedCount++;
                     if (student.status === "FORCE SUBMITTED") forcedCount++;
 
-                    // Search Filter
+                    // 1. Filter Ruangan
+                    if (selectedRoom !== "ALL" && student.room !== selectedRoom) return;
+
+                    // 2. Filter Nama
                     if (searchVal && !cleanString(student.rawName).includes(searchVal)) return;
 
                     const statusBadge = student.status === "TERKUNCI"
@@ -446,6 +486,7 @@
                             }
                         });
 
+                        updateRoomFilterOptions();
                         renderTable();
 
                         Swal.fire({
