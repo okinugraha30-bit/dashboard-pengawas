@@ -394,40 +394,53 @@
             if (forceEl) forceEl.textContent = logs.filter(i => i.status === "FORCE_SUBMITTED").length;
         }
 
-        function importExcelRuangan(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+       function importExcelRuangan(event) {
+    const file = event.target.files[0];
+    if (!file) return;
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
 
-                const rooms = new Set();
-                jsonData.forEach(row => {
-                    const name = row['Nama'] || row['NAMA'] || row['Nama Siswa'];
-                    const room = row['Ruangan'] || row['RUANGAN'] || row['Ruang'];
-
-                    if (name && room) {
-                        studentRoomMap[name.toString().trim().toLowerCase()] = room.toString().trim();
-                        rooms.add(room.toString().trim());
-                    }
-                });
-
-                const selectEl = document.getElementById('roomFilter');
-                if (selectEl) {
-                    selectEl.innerHTML = `<option value="ALL">Semua Ruangan</option>`;
-                    rooms.forEach(r => {
-                        selectEl.innerHTML += `<option value="${r}">${r}</option>`;
-                    });
-                }
-
-                alert(`Berhasil mengimpor ${jsonData.length} data siswa dan ${rooms.size} ruangan!`);
-            };
-            reader.readAsArrayBuffer(file);
+        if (jsonData.length === 0) {
+            alert("File Excel kosong!");
+            return;
         }
+
+        // Ambil kunci/nama kolom dari baris pertama Excel secara otomatis
+        const sampleRow = jsonData[0];
+        const keys = Object.keys(sampleRow);
+
+        // Cari kolom yang merepresentasikan Nama dan Ruangan secara fleksibel
+        let nameKey = keys.find(k => /nama|siswa|peserta/i.test(k)) || keys[0];
+        let roomKey = keys.find(k => /ruang|room|kelas|sesi/i.test(k)) || keys[1];
+
+        const rooms = new Set();
+        jsonData.forEach(row => {
+            const name = row[nameKey];
+            const room = row[roomKey];
+
+            if (name && room) {
+                studentRoomMap[name.toString().trim().toLowerCase()] = room.toString().trim();
+                rooms.add(room.toString().trim());
+            }
+        });
+
+        const selectEl = document.getElementById('roomFilter');
+        if (selectEl) {
+            selectEl.innerHTML = `<option value="ALL">Semua Ruangan</option>`;
+            rooms.forEach(r => {
+                selectEl.innerHTML += `<option value="${r}">${r}</option>`;
+            });
+        }
+
+        alert(`Berhasil mengimpor ${jsonData.length} data siswa dan ${rooms.size} ruangan! (Kolom terdeteksi: Nama="${nameKey}", Ruangan="${roomKey}")`);
+    };
+    reader.readAsArrayBuffer(file);
+}
 
         function exportToExcel() {
             const dataToExport = Object.values(studentLogs).map((item, idx) => ({
