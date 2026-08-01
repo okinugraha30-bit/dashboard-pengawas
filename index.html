@@ -1,571 +1,245 @@
-<!DOCTYPE html>
-<html lang="id">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Pengawas CBT</title>
-    
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- SweetAlert2 CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <!-- SheetJS (Excel Parser) CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    <!-- PubNub SDK -->
-    <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
-</head>
-<body class="bg-slate-100 text-slate-800 font-sans min-h-screen">
+<!-- SDK PubNub -->
+<script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
 
-    <!-- HEADER / NAVBAR -->
-    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-3">
-                <div class="bg-blue-600 p-2.5 rounded-xl shadow-lg">
-                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-                    </svg>
-                </div>
-                <div>
-                    <h1 class="text-xl font-bold tracking-wide">Dashboard Pengawas CBT</h1>
-                    <p class="text-xs text-slate-400">Monitoring Real-Time & Control Ujian Siswa</p>
-                </div>
-            </div>
+<script>
+(function() {
+    // 1. DIBENARKAN: Bypass darurat via URL parameter ?bypass=1
+    if (window.location.search.includes('bypass=1')) {
+        console.log("CBT Shield: Bypass Mode Active.");
+        return;
+    }
 
-            <!-- ACTION BUTTONS -->
-            <div class="flex flex-wrap items-center gap-3">
-                <button id="btn-pause" onclick="toggleGlobalPause()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2 rounded-lg text-sm flex items-center gap-2 shadow-sm transition">
-                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-                    <span id="txt-pause">Jeda Ujian (Global Pause)</span>
-                </button>
-                <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg text-sm flex items-center gap-2 shadow-sm transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                    Export Log Excel
-                </button>
-                <label class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg text-sm flex items-center gap-2 shadow-sm transition cursor-pointer">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                    Import Ruangan
-                    <input type="file" accept=".xlsx, .xls" class="hidden" onchange="handleRoomExcel(this)">
-                </label>
-            </div>
-        </div>
-    </header>
+    // 2. DIBENARKAN: Abaikan SEMUA Halaman Admin & Pengaturan Moodle
+    if (window.location.pathname.includes('/admin/')) {
+        console.log("CBT Shield: Admin Page Detected. Disabled.");
+        return;
+    }
 
-    <!-- MAIN CONTAINER -->
-    <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    // 3. DIBENARKAN: Pengecekan Role Admin, Guru, dan Manager
+    const isAdminOrTeacher = document.body.classList.contains('userrole-admin') ||
+                             document.body.classList.contains('userrole-editingteacher') ||
+                             document.body.classList.contains('userrole-manager') ||
+                             document.body.classList.contains('userrole-teacher') ||
+                             document.querySelector('a[href*="admin/search.php"]') !== null ||
+                             document.querySelector('.nav-link[href*="admin"]') !== null;
 
-        <!-- TOP STATS & TOTP CARD -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
-            <!-- TOTP TOKEN CARD -->
-            <div class="bg-slate-900 text-white rounded-2xl p-6 shadow-md border border-slate-800 flex flex-col justify-between relative overflow-hidden">
-                <div class="flex items-center justify-between mb-2">
-                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 0121 9z"/></svg>
-                        Token TOTP Pembuka Kunci (180s)
-                    </span>
-                </div>
-                <div class="text-center py-2">
-                    <div id="totp-code" class="text-4xl font-extrabold tracking-widest text-sky-400 font-mono">000000</div>
-                </div>
-                <div>
-                    <div class="w-full bg-slate-800 rounded-full h-1.5 mb-2 overflow-hidden">
-                        <div id="totp-progress" class="bg-sky-500 h-1.5 rounded-full transition-all duration-1000" style="width: 100%"></div>
-                    </div>
-                    <p id="totp-timer-text" class="text-xs text-center text-slate-400">Memperbarui dalam 180 detik...</p>
-                </div>
-            </div>
+    if (isAdminOrTeacher) {
+        console.log("CBT Shield: Admin/Teacher Role Detected. Disabled.");
+        return;
+    }
 
-            <!-- SUMMARY STATS -->
-            <div class="md:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between">
-                <div class="flex items-center justify-between mb-4">
-                    <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-                        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-                        Ringkasan Aktivitas
-                    </h2>
-                </div>
-                <div class="grid grid-cols-3 gap-4 text-center">
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
-                        <div id="stat-total" class="text-3xl font-extrabold text-slate-800">0</div>
-                        <div class="text-xs font-medium text-slate-500 mt-1">Total Pelanggaran</div>
-                    </div>
-                    <div class="bg-amber-50 p-4 rounded-xl border border-amber-100">
-                        <div id="stat-locked" class="text-3xl font-extrabold text-amber-600">0</div>
-                        <div class="text-xs font-medium text-amber-700 mt-1">Siswa Terkunci</div>
-                    </div>
-                    <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
-                        <div id="stat-forced" class="text-3xl font-extrabold text-emerald-600">0</div>
-                        <div class="text-xs font-medium text-emerald-700 mt-1">Force Submitted</div>
-                    </div>
-                </div>
-            </div>
-        </div>
+    // 4. DIBENARKAN: Hanya aktif saat siswa SEDANG MENGERJAKAN UJIAN (Attempt Quiz)
+    const isAttemptingQuiz = window.location.pathname.includes('/mod/quiz/attempt.php') || 
+                             window.location.pathname.includes('/mod/quiz/summary.php');
 
-        <!-- MONITORING TABLE CARD -->
-        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-            <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-                        Log Pelanggaran & Status Siswa
-                    </h2>
-                </div>
-                
-                <!-- FILTER & SEARCH CONTAINER -->
-                <div class="w-full md:w-auto flex flex-col sm:flex-row items-center gap-3">
-                    <!-- FILTER RUANGAN -->
-                    <select id="room-filter" onchange="renderTable()" class="w-full sm:w-48 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
-                        <option value="ALL">Semua Ruangan</option>
-                    </select>
+    if (!isAttemptingQuiz) {
+        return; // Jangan jalankan di luar pengerjaan kuis
+    }
 
-                    <!-- CARI NAMA SISWA -->
-                    <input type="text" id="search-input" oninput="renderTable()" placeholder="Cari nama siswa..." class="w-full sm:w-60 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
-                </div>
-            </div>
+    // ==========================================
+    // CONFIGURATION & PUBNUB INITIALIZATION
+    // ==========================================
+    const SECRET_SALT = "CBT_SECRET_KEY_2026";
+    let violationCount = 0;
+    let isQuizPaused = false;
 
-            <!-- TABLE -->
-            <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
-                    <thead>
-                        <tr class="bg-slate-900 text-white text-xs font-semibold tracking-wider uppercase">
-                            <th class="py-3 px-4 w-12 text-center">#</th>
-                            <th class="py-3 px-4">Nama Siswa</th>
-                            <th class="py-3 px-4">Ruangan</th>
-                            <th class="py-3 px-4">Jenis Pelanggaran</th>
-                            <th class="py-3 px-4 text-center">Jumlah</th>
-                            <th class="py-3 px-4">Waktu</th>
-                            <th class="py-3 px-4 text-center">Status</th>
-                            <th class="py-3 px-4 text-center">Aksi Pengawas</th>
-                        </tr>
-                    </thead>
-                    <tbody id="monitoring-tbody" class="divide-y divide-slate-100 text-sm">
-                        <!-- Rows rendered via JS -->
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </main>
-
-    <!-- JAVASCRIPT LOGIC -->
-    <script>
-        // CONFIG & PUBNUB INIT
-        const SECRET_SALT = "CBT_SECRET_KEY_2026";
-        const pubnub = new PubNub({
+    let pubnub = null;
+    if (typeof PubNub !== 'undefined') {
+        pubnub = new PubNub({
             publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87",
             subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659",
-            uuid: "dashboard_supervisor_" + Math.random().toString(36).substring(2, 7)
+            uuid: "student_" + Math.random().toString(36).substring(2, 7)
         });
-
         pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
+    }
 
-        // GLOBAL STATE
-        let studentDataMap = {}; // { cleanKey: { rawName, room, reason, count, timestamp, status } }
-        let roomMappingMap = {};  // { cleanKey: roomName }
-        let isGlobalPaused = false;
-        let totalViolationsCount = 0;
+    // Mencegah Pop-up Password Manager Chrome
+    document.addEventListener("DOMContentLoaded", function() {
+        const passwordInputs = document.querySelectorAll('input[type="password"]');
+        passwordInputs.forEach(input => {
+            input.setAttribute('autocomplete', 'new-password');
+            input.setAttribute('data-lpignore', 'true');
+        });
+    });
 
-        // SANITIZE & CLEAN STRING FUNCTION
-        function cleanString(str) {
-            return String(str || '')
-                .replace(/You are logged in as/i, '')
-                .replace(/\u00A0/g, ' ')      // Ganti Non-breaking space dengan spasi biasa
-                .replace(/\s*-\s*$/, '')      // Hapus strip & spasi di akhir nama
-                .toLowerCase()
-                .replace(/[^a-z0-9]/g, '')    // Ambil alfanumerik saja
-                .trim();
-        }
-
-        // DISPLAY NAME CLEANER (UNTUK TAMPILAN DI TABEL)
-        function formatDisplayName(raw) {
-            if (!raw) return "Siswa CBT";
-            return String(raw)
+    // Helper Fungsi
+    function getStudentName() {
+        let nameEl = document.querySelector('.usertext') || 
+                     document.querySelector('.logininfo') || 
+                     document.querySelector('.userpicture');
+        
+        if (nameEl) {
+            return nameEl.textContent
                 .replace(/You are logged in as/i, '')
                 .replace(/\u00A0/g, ' ')
-                .replace(/\s*-\s*$/, '') // Hilangkan strip akhir agar rapi
+                .replace(/\s*-\s*$/, '')
                 .trim();
         }
+        return "Siswa CBT";
+    }
 
-        // FIND ROOM FOR STUDENT
-        function findStudentRoom(studentName) {
-            const key = cleanString(studentName);
-            if (!key) return "Umum";
+    function generateTOTP() {
+        const epochSec = Math.floor(Date.now() / 1000);
+        const currentStep = Math.floor(epochSec / 180);
 
-            // 1. Direct match
-            if (roomMappingMap[key]) return roomMappingMap[key];
+        let hash = 0;
+        const str = SECRET_SALT + currentStep;
+        for (let i = 0; i < str.length; i++) {
+            hash = ((hash << 5) - hash) + str.charCodeAt(i);
+            hash |= 0;
+        }
+        return (Math.abs(hash % 900000) + 100000).toString();
+    }
 
-            // 2. Fuzzy match jika nama mengandung bagian kata yang sama
-            for (let rKey in roomMappingMap) {
-                if (rKey.length > 3 && (rKey.includes(key) || key.includes(rKey))) {
-                    return roomMappingMap[rKey];
+    function reportViolationToDashboard(reasonText) {
+        violationCount++;
+        const sName = getStudentName();
+
+        if (pubnub) {
+            pubnub.publish({
+                channel: "cbt_monitoring_channel",
+                message: {
+                    type: "VIOLATION",
+                    studentName: sName,
+                    reason: reasonText,
+                    count: violationCount,
+                    timestamp: new Date().toLocaleTimeString()
                 }
-            }
-
-            return "Umum";
+            });
         }
 
-        // UPDATE DROPDOWN FILTER RUANGAN DINAMIS
-        function updateRoomFilterOptions() {
-            const selectEl = document.getElementById('room-filter');
-            const currentSelected = selectEl.value;
+        lockScreenOverlay(reasonText);
+    }
 
-            // Kumpulkan daftar ruangan unik dari Excel dan Log Siswa
-            const roomsSet = new Set();
-            
-            Object.values(roomMappingMap).forEach(r => { if(r) roomsSet.add(r); });
-            Object.values(studentDataMap).forEach(s => { if(s.room) roomsSet.add(s.room); });
+    function forceSubmitQuiz() {
+        console.log("Menjalankan Force Submit Ujian Tuntas...");
 
-            // Susun kembali Opsi Select
-            selectEl.innerHTML = `<option value="ALL">Semua Ruangan</option>`;
-            
-            Array.from(roomsSet).sort().forEach(roomName => {
-                const opt = document.createElement('option');
-                opt.value = roomName;
-                opt.textContent = roomName;
-                selectEl.appendChild(opt);
+        const submitAllBtn = Array.from(document.querySelectorAll('button, input[type="button"], input[type="submit"]'))
+            .find(el => {
+                const txt = (el.textContent || el.value || '').toLowerCase();
+                return txt.includes('finish all and submit') || 
+                       txt.includes('kumpulkan semua dan selesai') ||
+                       txt.includes('submit all and finish');
             });
 
-            // Kembalikan pilihan sebelumnya jika ada
-            if (roomsSet.has(currentSelected)) {
-                selectEl.value = currentSelected;
+        if (submitAllBtn) {
+            submitAllBtn.click();
+            setTimeout(() => {
+                const confirmBtn = document.querySelector('.modal-dialog .btn-primary, .moodle-dialogue-base .btn-primary, button[data-action="save"]');
+                if (confirmBtn) {
+                    confirmBtn.click();
+                } else {
+                    const quizForm = document.getElementById('responseform') || document.querySelector('form[action*="processattempt.php"]');
+                    if (quizForm) quizForm.submit();
+                }
+            }, 400);
+        } else {
+            const finishAttemptBtn = document.querySelector('form button[type="submit"], input[id*="mod_quiz-next-nav"]');
+            const quizForm = document.getElementById('responseform') || document.querySelector('form[action*="processattempt.php"]');
+
+            if (finishAttemptBtn && quizForm) {
+                let finishInput = document.querySelector('input[name="finishattempt"]');
+                if (!finishInput) {
+                    finishInput = document.createElement('input');
+                    finishInput.type = 'hidden';
+                    finishInput.name = 'finishattempt';
+                    finishInput.value = '1';
+                    quizForm.appendChild(finishInput);
+                }
+                quizForm.submit();
+            } else if (quizForm) {
+                quizForm.submit();
             }
         }
+    }
 
-        // PUBNUB LISTENER (RECEIVE VIOLATION FROM MOODLE)
+    function lockScreenOverlay(reasonText) {
+        let overlay = document.getElementById('cbt-lock-overlay');
+        
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'cbt-lock-overlay';
+            overlay.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+                background-color: rgba(15, 23, 42, 0.98); z-index: 9999999;
+                display: flex; flex-direction: column; align-items: center; justify-content: center;
+                color: white; font-family: sans-serif; text-align: center; padding: 20px;
+            `;
+            document.body.appendChild(overlay);
+        }
+
+        overlay.innerHTML = `
+            <div style="max-width: 450px; background: #1e293b; padding: 30px; border-radius: 16px; border: 1px solid #334155; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.5);">
+                <div style="background: #ef4444; width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px auto;">
+                    <svg width="32" height="32" fill="none" stroke="white" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                </div>
+                <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 8px; color: #f8fafc;">Ujian Terkunci!</h2>
+                <p style="color: #94a3b8; font-size: 14px; margin-bottom: 20px;">Terdeteksi Pelanggaran: <br><strong style="color: #fca5a5;">${reasonText}</strong></p>
+                
+                <div style="margin-bottom: 20px;">
+                    <input type="text" id="cbt-passcode-input" placeholder="Masukkan Token Pembuka" maxlength="6" style="width: 100%; padding: 12px; font-size: 18px; text-align: center; tracking-widest: 4px; border-radius: 8px; border: 1px solid #475569; background: #0f172a; color: #38bdf8; font-weight: bold; outline: none;">
+                    <p id="cbt-error-msg" style="color: #ef4444; font-size: 12px; margin-top: 6px; display: none;">Token salah! Minta ke Pengawas.</p>
+                </div>
+
+                <button id="cbt-unlock-btn" style="width: 100%; background: #0284c7; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 14px;">Buka Kunci Ujian</button>
+            </div>
+        `;
+
+        overlay.style.display = 'flex';
+
+        document.getElementById('cbt-unlock-btn').onclick = function() {
+            const inputVal = document.getElementById('cbt-passcode-input').value.trim();
+            const correctToken = generateTOTP();
+
+            if (inputVal === correctToken) {
+                overlay.style.display = 'none';
+            } else {
+                document.getElementById('cbt-error-msg').style.display = 'block';
+            }
+        };
+    }
+
+    if (pubnub) {
         pubnub.addListener({
             message: function(msg) {
                 const data = msg.message;
-                if (data && data.type === "VIOLATION") {
-                    handleViolationReceived(data);
+                const myName = getStudentName();
+                if (!data) return;
+
+                if (data.type === "REMOTE_UNLOCK_COMMAND" && data.targetStudent === myName) {
+                    const overlay = document.getElementById('cbt-lock-overlay');
+                    if (overlay) overlay.style.display = 'none';
+                }
+
+                if (data.type === "FORCE_SUBMIT_COMMAND" && data.targetStudent === myName) {
+                    forceSubmitQuiz();
+                }
+
+                if (data.type === "GLOBAL_PAUSE_SIGNAL") {
+                    isQuizPaused = data.isPaused;
+                    if (isQuizPaused) {
+                        lockScreenOverlay("Ujian Sedang Dijeda oleh Pengawas");
+                    } else {
+                        const overlay = document.getElementById('cbt-lock-overlay');
+                        if (overlay) overlay.style.display = 'none';
+                    }
                 }
             }
         });
+    }
 
-        function handleViolationReceived(data) {
-            const rawName = data.studentName || "Siswa CBT";
-            const key = cleanString(rawName);
-
-            totalViolationsCount++;
-
-            if (!studentDataMap[key]) {
-                studentDataMap[key] = {
-                    rawName: formatDisplayName(rawName),
-                    room: findStudentRoom(rawName),
-                    reason: data.reason || "Pelanggaran Ujian",
-                    count: data.count || 1,
-                    timestamp: data.timestamp || new Date().toLocaleTimeString(),
-                    status: "TERKUNCI"
-                };
-            } else {
-                studentDataMap[key].rawName = formatDisplayName(rawName);
-                studentDataMap[key].room = findStudentRoom(rawName);
-                studentDataMap[key].reason = data.reason || studentDataMap[key].reason;
-                studentDataMap[key].count = data.count || (studentDataMap[key].count + 1);
-                studentDataMap[key].timestamp = data.timestamp || new Date().toLocaleTimeString();
-                if (studentDataMap[key].status !== "FORCE SUBMITTED") {
-                    studentDataMap[key].status = "TERKUNCI";
-                }
-            }
-
-            updateRoomFilterOptions();
-            renderTable();
+    // Deteksi Pindah Tab / Minimalize
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            reportViolationToDashboard("Meninggalkan Tab / Berpindah Aplikasi");
         }
+    });
 
-        // RENDER TABLE & UPDATE STATS
-        function renderTable() {
-            const tbody = document.getElementById('monitoring-tbody');
-            const searchVal = cleanString(document.getElementById('search-input').value);
-            const selectedRoom = document.getElementById('room-filter').value;
-            
-            tbody.innerHTML = "";
+    // Block Copy, Cut, Paste, Right Click khusus area pengerjaan ujian
+    document.addEventListener('copy', (e) => e.preventDefault());
+    document.addEventListener('cut', (e) => e.preventDefault());
+    document.addEventListener('paste', (e) => e.preventDefault());
+    document.addEventListener('contextmenu', (e) => e.preventDefault());
 
-            let lockedCount = 0;
-            let forcedCount = 0;
-            let list = Object.values(studentDataMap);
-
-            if (list.length === 0) {
-                tbody.innerHTML = `
-                    <tr>
-                        <td colspan="8" class="text-center py-8 text-slate-400">
-                            Belum ada log pelanggaran terdeteksi.
-                        </td>
-                    </tr>
-                `;
-            } else {
-                let idx = 1;
-                list.forEach(student => {
-                    if (student.status === "TERKUNCI") lockedCount++;
-                    if (student.status === "FORCE SUBMITTED") forcedCount++;
-
-                    // 1. Filter Ruangan
-                    if (selectedRoom !== "ALL" && student.room !== selectedRoom) return;
-
-                    // 2. Filter Nama
-                    if (searchVal && !cleanString(student.rawName).includes(searchVal)) return;
-
-                    const statusBadge = student.status === "TERKUNCI"
-                        ? `<span class="bg-red-100 text-red-700 font-bold px-2.5 py-1 rounded-full text-xs">TERKUNCI</span>`
-                        : (student.status === "FORCE SUBMITTED" 
-                            ? `<span class="bg-emerald-100 text-emerald-700 font-bold px-2.5 py-1 rounded-full text-xs">SUBMITTED</span>`
-                            : `<span class="bg-blue-100 text-blue-700 font-bold px-2.5 py-1 rounded-full text-xs">AKTIF</span>`);
-
-                    const row = document.createElement('tr');
-                    row.className = "hover:bg-slate-50 transition border-b border-slate-100";
-                    row.innerHTML = `
-                        <td class="py-3 px-4 text-center text-slate-400 font-medium">${idx++}</td>
-                        <td class="py-3 px-4 font-semibold text-slate-800">${student.rawName}</td>
-                        <td class="py-3 px-4"><span class="bg-slate-200 text-slate-700 text-xs px-2 py-0.5 rounded font-mono font-bold">${student.room}</span></td>
-                        <td class="py-3 px-4 text-red-600 font-medium">${student.reason}</td>
-                        <td class="py-3 px-4 text-center font-bold text-slate-700">${student.count}x</td>
-                        <td class="py-3 px-4 text-slate-500 text-xs">${student.timestamp}</td>
-                        <td class="py-3 px-4 text-center">${statusBadge}</td>
-                        <td class="py-3 px-4 text-center space-x-1">
-                            <button onclick="remoteUnlockStudent('${student.rawName}')" class="bg-blue-50 text-blue-600 hover:bg-blue-100 font-semibold px-2.5 py-1 rounded text-xs transition border border-blue-200">
-                                Buka Kunci
-                            </button>
-                            <button onclick="remoteForceSubmit('${student.rawName}')" class="bg-red-50 text-red-600 hover:bg-red-100 font-semibold px-2.5 py-1 rounded text-xs transition border border-red-200">
-                                Force Submit
-                            </button>
-                        </td>
-                    `;
-                    tbody.appendChild(row);
-                });
-            }
-
-            document.getElementById('stat-total').innerText = totalViolationsCount;
-            document.getElementById('stat-locked').innerText = lockedCount;
-            document.getElementById('stat-forced').innerText = forcedCount;
-        }
-
-        // REMOTE CONTROL ACTIONS
-        function remoteUnlockStudent(studentName) {
-            pubnub.publish({
-                channel: "cbt_monitoring_channel",
-                message: {
-                    type: "REMOTE_UNLOCK_COMMAND",
-                    targetStudent: studentName
-                }
-            });
-
-            const key = cleanString(studentName);
-            if (studentDataMap[key] && studentDataMap[key].status !== "FORCE SUBMITTED") {
-                studentDataMap[key].status = "AKTIF";
-            }
-            renderTable();
-
-            Swal.fire({
-                toast: true,
-                position: 'top-end',
-                icon: 'success',
-                title: `Sinyal Pembuka Kunci dikirim ke ${studentName}`,
-                showConfirmButton: false,
-                timer: 2000
-            });
-        }
-
-        function remoteForceSubmit(studentName) {
-            Swal.fire({
-                title: 'Hentikan Ujian Siswa?',
-                text: `Siswa ${studentName} akan dipaksa mengakhiri dan mengirimkan jawaban ujiannya!`,
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#dc2626',
-                cancelButtonColor: '#64748b',
-                confirmButtonText: 'Ya, Force Submit!',
-                cancelButtonText: 'Batal'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    pubnub.publish({
-                        channel: "cbt_monitoring_channel",
-                        message: {
-                            type: "FORCE_SUBMIT_COMMAND",
-                            targetStudent: studentName
-                        }
-                    });
-
-                    const key = cleanString(studentName);
-                    if (studentDataMap[key]) {
-                        studentDataMap[key].status = "FORCE SUBMITTED";
-                    }
-                    renderTable();
-                }
-            });
-        }
-
-        function toggleGlobalPause() {
-            isGlobalPaused = !isGlobalPaused;
-            
-            pubnub.publish({
-                channel: "cbt_monitoring_channel",
-                message: {
-                    type: "GLOBAL_PAUSE_SIGNAL",
-                    isPaused: isGlobalPaused
-                }
-            });
-
-            const btn = document.getElementById('btn-pause');
-            const txt = document.getElementById('txt-pause');
-
-            if (isGlobalPaused) {
-                btn.className = "bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-lg text-sm flex items-center gap-2 shadow-sm transition";
-                txt.innerText = "Resume Ujian (Ujian Dijeda)";
-            } else {
-                btn.className = "bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2 rounded-lg text-sm flex items-center gap-2 shadow-sm transition";
-                txt.innerText = "Jeda Ujian (Global Pause)";
-            }
-        }
-
-        // EXCEL ROOM IMPORT HANDLER (ULTRA FLEXIBLE)
-        function handleRoomExcel(input) {
-            const file = input.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    
-                    const firstSheetName = workbook.SheetNames[0];
-                    const sheet = workbook.Sheets[firstSheetName];
-                    
-                    // Ambil data dalam bentuk Array of Arrays (Baris demi Baris)
-                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
-
-                    if (rows.length < 2) {
-                        Swal.fire({ icon: 'warning', title: 'File Kosong', text: 'File Excel tidak memiliki data.' });
-                        return;
-                    }
-
-                    // Cari Baris Header (Baris pertama yang tidak kosong)
-                    let headerRow = rows[0];
-                    let nameColIdx = -1;
-                    let roomColIdx = -1;
-
-                    // Cari Indeks Kolom Nama & Ruangan berdasarkan kemiripan teks
-                    headerRow.forEach((colName, index) => {
-                        const colStr = String(colName).toLowerCase().replace(/[^a-z0-9]/g, '');
-                        
-                        // Kata kunci kolom NAMA
-                        if (colStr.includes('nama') || colStr.includes('siswa') || colStr.includes('peserta') || colStr.includes('student')) {
-                            if (nameColIdx === -1) nameColIdx = index;
-                        }
-                        
-                        // Kata kunci kolom RUANGAN
-                        if (colStr.includes('ruang') || colStr.includes('room') || colStr.includes('kelas') || colStr.includes('lab') || colStr.includes('sesi')) {
-                            if (roomColIdx === -1) roomColIdx = index;
-                        }
-                    });
-
-                    // Fallback: Jika header tidak ketemu kata kuncinya, asumsi Kolom 0 = Nama, Kolom 1 = Ruangan
-                    if (nameColIdx === -1) nameColIdx = 0; // Kolom A
-                    if (roomColIdx === -1) roomColIdx = 1; // Kolom B
-
-                    roomMappingMap = {};
-                    let countLoaded = 0;
-
-                    // Loop membaca baris data (mulai dari baris ke-2 / setelah header)
-                    for (let i = 1; i < rows.length; i++) {
-                        const row = rows[i];
-                        const sName = String(row[nameColIdx] || '').trim();
-                        const rName = String(row[roomColIdx] || '').trim();
-
-                        if (sName && rName) {
-                            const keyName = cleanString(sName);
-                            if (keyName) {
-                                roomMappingMap[keyName] = rName;
-                                countLoaded++;
-                            }
-                        }
-                    }
-
-                    if (countLoaded > 0) {
-                        // Update otomatis ruangan di tabel jika sudah ada siswa terdaftar
-                        Object.keys(studentDataMap).forEach(key => {
-                            const newRoom = findStudentRoom(studentDataMap[key].rawName);
-                            if (newRoom !== "Umum") {
-                                studentDataMap[key].room = newRoom;
-                            }
-                        });
-
-                        updateRoomFilterOptions();
-                        renderTable();
-
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Berhasil',
-                            text: `${countLoaded} Data Ruangan Di-import.`,
-                            confirmButtonColor: '#0284c7'
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Gagal Membaca Data',
-                            text: 'Pastikan file Excel berisi kolom Nama dan Ruangan.',
-                            confirmButtonColor: '#eab308'
-                        });
-                    }
-
-                } catch (error) {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Gagal Membaca File',
-                        text: 'Format file tidak terbaca. Gunakan file .xlsx atau .xls',
-                        confirmButtonColor: '#dc2626'
-                    });
-                }
-                
-                input.value = ''; // Reset input
-            };
-
-            reader.readAsArrayBuffer(file);
-        }
-
-        // EXPORT LOG TO EXCEL
-        function exportToExcel() {
-            const list = Object.values(studentDataMap);
-            if (list.length === 0) {
-                Swal.fire({ icon: 'info', title: 'Log Masih Kosong', text: 'Belum ada data pelanggaran untuk di-export.' });
-                return;
-            }
-
-            const exportData = list.map((item, index) => ({
-                "No": index + 1,
-                "Nama Siswa": item.rawName,
-                "Ruangan": item.room,
-                "Jenis Pelanggaran": item.reason,
-                "Jumlah Pelanggaran": item.count,
-                "Waktu": item.timestamp,
-                "Status": item.status
-            }));
-
-            const ws = XLSX.utils.json_to_sheet(exportData);
-            const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Log Pelanggaran");
-            XLSX.writeFile(wb, `Log_Pelanggaran_CBT_${new Date().toISOString().slice(0,10)}.xlsx`);
-        }
-
-        // GENERATE TOTP TOKEN (180 SECONDS CYCLE)
-        function generateTOTP() {
-            const epochSec = Math.floor(Date.now() / 1000);
-            const currentStep = Math.floor(epochSec / 180);
-            const secondsRemaining = 180 - (epochSec % 180);
-
-            let hash = 0;
-            const str = SECRET_SALT + currentStep;
-            for (let i = 0; i < str.length; i++) {
-                hash = ((hash << 5) - hash) + str.charCodeAt(i);
-                hash |= 0;
-            }
-            const token = (Math.abs(hash % 900000) + 100000).toString();
-
-            document.getElementById('totp-code').innerText = token;
-            document.getElementById('totp-timer-text').innerText = `Memperbarui dalam ${secondsRemaining} detik...`;
-            document.getElementById('totp-progress').style.width = `${(secondsRemaining / 180) * 100}%`;
-        }
-
-        // INIT INTERVAL
-        setInterval(generateTOTP, 1000);
-        generateTOTP();
-        renderTable();
-    </script>
-</body>
-</html>
+})();
+</script>
