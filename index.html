@@ -129,21 +129,27 @@
         let studentLogs = {}; 
         let studentRoomMap = {}; 
         let isGlobalPaused = false;
+        let pubnub = null;
 
-        const pubnub = new PubNub({
-            publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87",
-            subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659",
-            uuid: "supervisor_dashboard"
-        });
+        // Inisialisasi setelah DOM selesai di-load
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof PubNub !== 'undefined') {
+                pubnub = new PubNub({
+                    publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87",
+                    subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659",
+                    uuid: "supervisor_dashboard"
+                });
 
-        pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
+                pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
 
-        pubnub.addListener({
-            message: function(msg) {
-                const data = msg.message;
-                if (data && data.type === "VIOLATION") {
-                    handleIncomingViolation(data);
-                }
+                pubnub.addListener({
+                    message: function(msg) {
+                        const data = msg.message;
+                        if (data && data.type === "VIOLATION") {
+                            handleIncomingViolation(data);
+                        }
+                    }
+                });
             }
         });
 
@@ -174,6 +180,8 @@
 
         function renderTable() {
             const tbody = document.getElementById('violationTableBody');
+            if (!tbody) return;
+
             const searchVal = document.getElementById('searchInput').value.toLowerCase();
             const roomVal = document.getElementById('roomFilter').value;
 
@@ -214,10 +222,12 @@
         }
 
         function unlockStudent(studentName) {
-            pubnub.publish({
-                channel: "cbt_monitoring_channel",
-                message: { type: "REMOTE_UNLOCK_COMMAND", targetStudent: studentName }
-            });
+            if (pubnub) {
+                pubnub.publish({
+                    channel: "cbt_monitoring_channel",
+                    message: { type: "REMOTE_UNLOCK_COMMAND", targetStudent: studentName }
+                });
+            }
 
             if (studentLogs[studentName]) {
                 studentLogs[studentName].status = "ACTIVE";
@@ -228,10 +238,12 @@
 
         function forceSubmitStudent(studentName) {
             if (confirm(`Yakin ingin mengumpulkan paksa (Force Submit) ujian ${studentName}?`)) {
-                pubnub.publish({
-                    channel: "cbt_monitoring_channel",
-                    message: { type: "FORCE_SUBMIT_COMMAND", targetStudent: studentName }
-                });
+                if (pubnub) {
+                    pubnub.publish({
+                        channel: "cbt_monitoring_channel",
+                        message: { type: "FORCE_SUBMIT_COMMAND", targetStudent: studentName }
+                    });
+                }
 
                 if (studentLogs[studentName]) {
                     studentLogs[studentName].status = "FORCE_SUBMITTED";
@@ -244,18 +256,22 @@
         function toggleGlobalPause() {
             isGlobalPaused = !isGlobalPaused;
             const btn = document.getElementById('globalPauseBtn');
-            btn.className = isGlobalPaused 
-                ? "bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition"
-                : "bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition";
-            
-            btn.innerHTML = isGlobalPaused
-                ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/></svg><span>Lanjutkan Ujian</span>`
-                : `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>Jeda Ujian</span>`;
+            if (btn) {
+                btn.className = isGlobalPaused 
+                    ? "bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition"
+                    : "bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition";
+                
+                btn.innerHTML = isGlobalPaused
+                    ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/></svg><span>Lanjutkan Ujian</span>`
+                    : `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>Jeda Ujian</span>`;
+            }
 
-            pubnub.publish({
-                channel: "cbt_monitoring_channel",
-                message: { type: "GLOBAL_PAUSE_SIGNAL", isPaused: isGlobalPaused }
-            });
+            if (pubnub) {
+                pubnub.publish({
+                    channel: "cbt_monitoring_channel",
+                    message: { type: "GLOBAL_PAUSE_SIGNAL", isPaused: isGlobalPaused }
+                });
+            }
         }
 
         function resetViolationLogs() {
@@ -266,7 +282,6 @@
             }
         }
 
-        // FUNGSI LOGOUT PENGAWAS
         function logoutPengawas() {
             if (confirm("Apakah Anda yakin ingin keluar dari Dashboard Pengawas?")) {
                 window.location.href = "https://class.smp.tarunabakti.sch.id";
@@ -275,9 +290,13 @@
 
         function updateStats() {
             const logs = Object.values(studentLogs);
-            document.getElementById('statTotalViolations').textContent = logs.reduce((acc, curr) => acc + curr.count, 0);
-            document.getElementById('statLockedStudents').textContent = logs.filter(i => i.status === "LOCKED").length;
-            document.getElementById('statForceSubmitted').textContent = logs.filter(i => i.status === "FORCE_SUBMITTED").length;
+            const totalEl = document.getElementById('statTotalViolations');
+            const lockedEl = document.getElementById('statLockedStudents');
+            const forceEl = document.getElementById('statForceSubmitted');
+
+            if (totalEl) totalEl.textContent = logs.reduce((acc, curr) => acc + curr.count, 0);
+            if (lockedEl) lockedEl.textContent = logs.filter(i => i.status === "LOCKED").length;
+            if (forceEl) forceEl.textContent = logs.filter(i => i.status === "FORCE_SUBMITTED").length;
         }
 
         function importExcelRuangan(event) {
@@ -303,10 +322,12 @@
                 });
 
                 const selectEl = document.getElementById('roomFilter');
-                selectEl.innerHTML = `<option value="ALL">Semua Ruangan</option>`;
-                rooms.forEach(r => {
-                    selectEl.innerHTML += `<option value="${r}">${r}</option>`;
-                });
+                if (selectEl) {
+                    selectEl.innerHTML = `<option value="ALL">Semua Ruangan</option>`;
+                    rooms.forEach(r => {
+                        selectEl.innerHTML += `<option value="${r}">${r}</option>`;
+                    });
+                }
 
                 alert(`Berhasil mengimpor ${jsonData.length} data siswa dan ${rooms.size} ruangan!`);
             };
