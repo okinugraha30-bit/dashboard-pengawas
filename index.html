@@ -219,13 +219,18 @@
 
         // Proses Logout
         function logoutPengawas() {
-            if (confirm("Apakah Anda yakin ingin keluar dari Dashboard Pengawas?")) {
-                localStorage.removeItem('isPengawasLoggedIn');
-                document.getElementById('username').value = '';
-                document.getElementById('password').value = '';
-                showLogin();
-            }
-        }
+    if (confirm("Apakah Anda yakin ingin keluar dari Dashboard Pengawas?")) {
+        // Hapus status session login
+        localStorage.removeItem('isPengawasLoggedIn');
+        
+        // Kosongkan form input
+        document.getElementById('username').value = '';
+        document.getElementById('password').value = '';
+        
+        // Kembali ke tampilan login di halaman yang sama (Tanpa pindah link)
+        showLogin();
+    }
+}
 
         // Inisialisasi PubNub Real-time Listening
         function initPubNub() {
