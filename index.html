@@ -9,131 +9,227 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen">
-    
-    <!-- Navbar Header Dashboard Pengawas -->
-    <header class="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="flex items-center gap-3">
-                <div class="bg-blue-600 p-2 rounded-lg">
-                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+
+    <!-- ========================================== -->
+    <!-- SECTION 1: HALAMAN LOGIN PENGAWAS          -->
+    <!-- ========================================== -->
+    <div id="loginSection" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 w-full max-w-md shadow-2xl space-y-6">
+            <div class="text-center space-y-2">
+                <div class="inline-flex bg-blue-600 p-3 rounded-xl mb-2">
+                    <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                 </div>
-                <div>
-                    <h1 class="text-xl font-bold">Dashboard Pengawas CBT</h1>
-                    <p class="text-xs text-slate-400">Monitoring Real-Time & Control Ujian Siswa</p>
-                </div>
+                <h2 class="text-2xl font-bold text-slate-100">Login Pengawas</h2>
+                <p class="text-xs text-slate-400">Masukkan kredensial untuk mengakses Dashboard Monitoring CBT</p>
             </div>
-            
-            <div class="flex flex-wrap items-center gap-3">
-                <button id="globalPauseBtn" onclick="toggleGlobalPause()" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    <span>Jeda Ujian</span>
+
+            <!-- Form Login -->
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Username / ID Pengawas</label>
+                    <input type="text" id="username" required placeholder="Masukkan username" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 outline-none focus:border-blue-500 transition">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Password</label>
+                    <input type="password" id="password" required placeholder="••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 outline-none focus:border-blue-500 transition">
+                </div>
+
+                <div id="loginErrorMessage" class="text-rose-400 text-xs text-center hidden font-medium">
+                    Username atau Password salah!
+                </div>
+
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg transition shadow-lg shadow-blue-600/30">
+                    Masuk Dashboard
                 </button>
-                <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                    Export Excel
+            </form>
+        </div>
+    </div>
+
+
+    <!-- ========================================== -->
+    <!-- SECTION 2: DASHBOARD MONITORING (HIDDEN)  -->
+    <!-- ========================================== -->
+    <div id="dashboardSection" class="hidden">
+        <!-- Navbar Header Dashboard Pengawas -->
+        <header class="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="bg-blue-600 p-2 rounded-lg">
+                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold">Dashboard Pengawas CBT</h1>
+                        <p class="text-xs text-slate-400">Monitoring Real-Time & Control Ujian Siswa</p>
+                    </div>
+                </div>
+                
+                <div class="flex flex-wrap items-center gap-3">
+                    <button id="globalPauseBtn" onclick="toggleGlobalPause()" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        <span>Jeda Ujian</span>
+                    </button>
+                    <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        Export Excel
+                    </button>
+                    <label class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                        Import Ruangan
+                        <input type="file" id="excelFileInput" accept=".xlsx, .xls" class="hidden" onchange="importExcelRuangan(event)">
+                    </label>
+
+                    <!-- TOMBOL LOGOUT PENGAWAS -->
+                    <button onclick="logoutPengawas()" class="bg-rose-600 hover:bg-rose-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition border border-rose-500/30">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Body -->
+        <main class="max-w-7xl mx-auto p-4 space-y-6">
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-400 font-semibold uppercase">Total Pelanggaran</p>
+                        <h3 id="statTotalViolations" class="text-3xl font-bold mt-1 text-slate-100">0</h3>
+                    </div>
+                    <div class="p-3 bg-red-500/10 text-red-400 rounded-lg">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-400 font-semibold uppercase">Siswa Terkunci</p>
+                        <h3 id="statLockedStudents" class="text-3xl font-bold mt-1 text-amber-400">0</h3>
+                    </div>
+                    <div class="p-3 bg-amber-500/10 text-amber-400 rounded-lg">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                    </div>
+                </div>
+
+                <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-slate-400 font-semibold uppercase">Force Submitted</p>
+                        <h3 id="statForceSubmitted" class="text-3xl font-bold mt-1 text-emerald-400">0</h3>
+                    </div>
+                    <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter Controls -->
+            <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
+                    <select id="roomFilter" onchange="renderTable()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-blue-500">
+                        <option value="ALL">Semua Ruangan</option>
+                    </select>
+
+                    <input type="text" id="searchInput" onkeyup="renderTable()" placeholder="Cari nama siswa..." class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-blue-500 w-full md:w-64">
+                </div>
+
+                <button onclick="resetViolationLogs()" class="bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition w-full md:w-auto justify-center">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    Reset Log Pelanggaran
                 </button>
-                <label class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer transition">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
-                    Import Ruangan
-                    <input type="file" id="excelFileInput" accept=".xlsx, .xls" class="hidden" onchange="importExcelRuangan(event)">
-                </label>
-
-                <!-- TOMBOL LOGOUT PENGAWAS -->
-                <button onclick="logoutPengawas()" class="bg-rose-600 hover:bg-rose-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition border border-rose-500/30">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                    <span>Logout</span>
-                </button>
-            </div>
-        </div>
-    </header>
-
-    <!-- Main Body -->
-    <main class="max-w-7xl mx-auto p-4 space-y-6">
-        
-        <!-- Summary Cards -->
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 flex items-center justify-between">
-                <div>
-                    <p class="text-xs text-slate-400 font-semibold uppercase">Total Pelanggaran</p>
-                    <h3 id="statTotalViolations" class="text-3xl font-bold mt-1 text-slate-100">0</h3>
-                </div>
-                <div class="p-3 bg-red-500/10 text-red-400 rounded-lg">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                </div>
             </div>
 
-            <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 flex items-center justify-between">
-                <div>
-                    <p class="text-xs text-slate-400 font-semibold uppercase">Siswa Terkunci</p>
-                    <h3 id="statLockedStudents" class="text-3xl font-bold mt-1 text-amber-400">0</h3>
-                </div>
-                <div class="p-3 bg-amber-500/10 text-amber-400 rounded-lg">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+            <!-- Tabel Log Pelanggaran -->
+            <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-xl">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-slate-300">
+                        <thead class="bg-slate-950/50 text-slate-400 uppercase text-xs font-semibold">
+                            <tr>
+                                <th class="p-4">#</th>
+                                <th class="p-4">Nama Siswa</th>
+                                <th class="p-4">Ruangan</th>
+                                <th class="p-4">Jenis Pelanggaran</th>
+                                <th class="p-4">Jumlah</th>
+                                <th class="p-4">Waktu</th>
+                                <th class="p-4">Status</th>
+                                <th class="p-4 text-center">Aksi Pengawas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="violationTableBody" class="divide-y divide-slate-700/50">
+                            <tr>
+                                <td colspan="8" class="p-8 text-center text-slate-500">Belum ada log pelanggaran terdeteksi.</td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
+        </main>
+    </div>
 
-            <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 flex items-center justify-between">
-                <div>
-                    <p class="text-xs text-slate-400 font-semibold uppercase">Force Submitted</p>
-                    <h3 id="statForceSubmitted" class="text-3xl font-bold mt-1 text-emerald-400">0</h3>
-                </div>
-                <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                </div>
-            </div>
-        </div>
-
-        <!-- Filter & Action Controls -->
-        <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
-            <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                <select id="roomFilter" onchange="renderTable()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-blue-500">
-                    <option value="ALL">Semua Ruangan</option>
-                </select>
-
-                <input type="text" id="searchInput" onkeyup="renderTable()" placeholder="Cari nama siswa..." class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-blue-500 w-full md:w-64">
-            </div>
-
-            <button onclick="resetViolationLogs()" class="bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition w-full md:w-auto justify-center">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                Reset Log Pelanggaran
-            </button>
-        </div>
-
-        <!-- Tabel Log Pelanggaran -->
-        <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-xl">
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm text-slate-300">
-                    <thead class="bg-slate-950/50 text-slate-400 uppercase text-xs font-semibold">
-                        <tr>
-                            <th class="p-4">#</th>
-                            <th class="p-4">Nama Siswa</th>
-                            <th class="p-4">Ruangan</th>
-                            <th class="p-4">Jenis Pelanggaran</th>
-                            <th class="p-4">Jumlah</th>
-                            <th class="p-4">Waktu</th>
-                            <th class="p-4">Status</th>
-                            <th class="p-4 text-center">Aksi Pengawas</th>
-                        </tr>
-                    </thead>
-                    <tbody id="violationTableBody" class="divide-y divide-slate-700/50">
-                        <tr>
-                            <td colspan="8" class="p-8 text-center text-slate-500">Belum ada log pelanggaran terdeteksi.</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </main>
-
+    <!-- ========================================== -->
+    <!-- LOGIK JAVASCRIPT: AUTH & DASHBOARD        -->
+    <!-- ========================================== -->
     <script>
+        // KREDENSIAL PENGAWAS (Ubah sesuai kebutuhan Anda)
+        const AUTH_USER = "admin";
+        const AUTH_PASS = "admin123";
+
         let studentLogs = {}; 
         let studentRoomMap = {}; 
         let isGlobalPaused = false;
         let pubnub = null;
 
-        // Inisialisasi setelah DOM selesai di-load
+        // Cek status session saat halaman pertama kali dibuka
         document.addEventListener('DOMContentLoaded', function() {
-            if (typeof PubNub !== 'undefined') {
+            const isLoggedIn = localStorage.getItem('isPengawasLoggedIn');
+            if (isLoggedIn === 'true') {
+                showDashboard();
+            } else {
+                showLogin();
+            }
+        });
+
+        // Halaman Tampilan Control
+        function showLogin() {
+            document.getElementById('loginSection').classList.remove('hidden');
+            document.getElementById('dashboardSection').classList.add('hidden');
+        }
+
+        function showDashboard() {
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('dashboardSection').classList.remove('hidden');
+            initPubNub(); // Jalankan jaringan pubnub setelah login
+        }
+
+        // Proses Login
+        function handleLogin(e) {
+            e.preventDefault();
+            const userIn = document.getElementById('username').value.trim();
+            const passIn = document.getElementById('password').value.trim();
+            const errEl = document.getElementById('loginErrorMessage');
+
+            if (userIn === AUTH_USER && passIn === AUTH_PASS) {
+                errEl.classList.add('hidden');
+                localStorage.setItem('isPengawasLoggedIn', 'true');
+                showDashboard();
+            } else {
+                errEl.classList.remove('hidden');
+            }
+        }
+
+        // Proses Logout
+        function logoutPengawas() {
+            if (confirm("Apakah Anda yakin ingin keluar dari Dashboard Pengawas?")) {
+                localStorage.removeItem('isPengawasLoggedIn');
+                document.getElementById('username').value = '';
+                document.getElementById('password').value = '';
+                showLogin();
+            }
+        }
+
+        // Inisialisasi PubNub Real-time Listening
+        function initPubNub() {
+            if (typeof PubNub !== 'undefined' && !pubnub) {
                 pubnub = new PubNub({
                     publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87",
                     subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659",
@@ -151,7 +247,7 @@
                     }
                 });
             }
-        });
+        }
 
         function handleIncomingViolation(data) {
             const sName = data.studentName;
@@ -279,12 +375,6 @@
                 studentLogs = {};
                 updateStats();
                 renderTable();
-            }
-        }
-
-        function logoutPengawas() {
-            if (confirm("Apakah Anda yakin ingin keluar dari Dashboard Pengawas?")) {
-                window.location.href = "https://class.smp.tarunabakti.sch.id";
             }
         }
 
