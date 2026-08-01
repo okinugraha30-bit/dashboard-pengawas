@@ -125,7 +125,7 @@
         });
 
         function showLogin() { document.getElementById('loginSection').classList.remove('hidden'); document.getElementById('dashboardSection').classList.add('hidden'); }
-        function showDashboard() { document.getElementById('loginSection').classList.add('hidden'); document.getElementById('dashboardSection').classList.remove('hidden'); initPubNub(); }
+        function showDashboard() { document.getElementById('loginSection').classList.add('hidden'); document.getElementById('dashboardSection').classList.remove('hidden'); initPubNub(); updatePauseButtonUI(); }
 
         function handleLogin(e) {
             e.preventDefault();
@@ -314,13 +314,16 @@
             isExamPaused = !isExamPaused;
             saveData();
             updatePauseButtonUI();
+            
             if (pubnub) {
                 pubnub.publish({ 
                     channel: "cbt_monitoring_channel", 
                     message: { type: isExamPaused ? "GLOBAL_PAUSE" : "GLOBAL_RESUME" } 
                 }, (status) => {
                     if (!status.error) {
-                        alert(isExamPaused ? "Ujian berhasil dijeda secara global untuk semua peserta." : "Ujian dilanjutkan kembali.");
+                        alert("Perintah kontrol ujian dikirim ke semua peserta.");
+                    } else {
+                        alert("Gagal mengirim perintah kontrol: " + status.error.message);
                     }
                 });
             }
