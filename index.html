@@ -394,7 +394,7 @@
             if (forceEl) forceEl.textContent = logs.filter(i => i.status === "FORCE_SUBMITTED").length;
         }
 
-       function importExcelRuangan(event) {
+      function importExcelRuangan(event) {
     const file = event.target.files[0];
     if (!file) return;
 
@@ -403,32 +403,36 @@
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet);
+        
+        // Konversi sheet ke bentuk array (baris demi baris)
+        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
 
-        if (jsonData.length === 0) {
-            alert("File Excel kosong!");
+        if (jsonData.length <= 1) {
+            alert("File Excel kosong atau hanya berisi header!");
             return;
         }
 
-        // Ambil kunci/nama kolom dari baris pertama Excel secara otomatis
-        const sampleRow = jsonData[0];
-        const keys = Object.keys(sampleRow);
-
-        // Cari kolom yang merepresentasikan Nama dan Ruangan secara fleksibel
-        let nameKey = keys.find(k => /nama|siswa|peserta/i.test(k)) || keys[0];
-        let roomKey = keys.find(k => /ruang|room|kelas|sesi/i.test(k)) || keys[1];
-
+        // Baris pertama adalah header, baris berikutnya adalah data
+        // Kita ambil kolom ke-0 (index 0) sebagai Nama dan kolom ke-1 (index 1) sebagai Ruangan
         const rooms = new Set();
-        jsonData.forEach(row => {
-            const name = row[nameKey];
-            const room = row[roomKey];
+        let successCount = 0;
+
+        // Mulai dari i = 1 untuk melewati baris header
+        for (let i = 1; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            if (!row || row.length < 2) continue;
+
+            const name = row[0] ? row[0].toString().trim() : '';
+            const room = row[1] ? row[1].toString().trim() : '';
 
             if (name && room) {
-                studentRoomMap[name.toString().trim().toLowerCase()] = room.toString().trim();
-                rooms.add(room.toString().trim());
+                studentRoomMap[name.toLowerCase()] = room;
+                rooms.add(room);
+                successCount++;
             }
-        });
+        }
 
+        // Perbarui pilihan dropdown ruangan di filter
         const selectEl = document.getElementById('roomFilter');
         if (selectEl) {
             selectEl.innerHTML = `<option value="ALL">Semua Ruangan</option>`;
@@ -437,7 +441,7 @@
             });
         }
 
-        alert(`Berhasil mengimpor ${jsonData.length} data siswa dan ${rooms.size} ruangan! (Kolom terdeteksi: Nama="${nameKey}", Ruangan="${roomKey}")`);
+        alert(`Berhasil mengimpor ${successCount} data siswa dan ${rooms.size} ruangan!`);
     };
     reader.readAsArrayBuffer(file);
 }
