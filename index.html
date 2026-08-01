@@ -125,9 +125,6 @@
 
     <!-- JAVASCRIPT LOGIC -->
     <script>
-        // ==========================================
-        // 1. INISIALISASI & GLOBAL STATE
-        // ==========================================
         const SECRET_SALT = "CBT_SECRET_KEY_2026";
         let logsData = JSON.parse(localStorage.getItem('cbt_logs_data') || '[]');
         let isPaused = localStorage.getItem('cbt_global_paused') === 'true';
@@ -155,9 +152,6 @@
             document.getElementById('filter-ruangan').addEventListener('change', renderTableLogs);
         });
 
-        // ==========================================
-        // 2. PUBNUB REALTIME LISTENER
-        // ==========================================
         pubnub.addListener({
             message: function(msg) {
                 const data = msg.message;
@@ -188,9 +182,6 @@
             Toast.fire({ icon: 'warning', title: `Pelanggaran: ${data.studentName}` });
         }
 
-        // ==========================================
-        // 3. LOGIKA UPLOAD EXCEL & DATABASE RUANGAN
-        // ==========================================
         document.getElementById('excelFileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (!file) return;
@@ -238,7 +229,6 @@
                     localStorage.setItem('cbt_room_database', JSON.stringify(roomMapping));
                     localStorage.setItem('cbt_detected_rooms', JSON.stringify(Array.from(detectedRooms)));
 
-                    // Update log yang ada dengan ruang baru
                     logsData.forEach(log => {
                         log.room = getStudentRoom(log.studentName);
                     });
@@ -311,9 +301,6 @@
             }
         }
 
-        // ==========================================
-        // 4. RENDER TABEL LOGS, STATISTIK & FORCE SUBMIT
-        // ==========================================
         function renderTableLogs() {
             const tbody = document.getElementById('table-log-body');
             const filterRoom = document.getElementById('filter-ruangan').value;
@@ -345,6 +332,10 @@
             filtered.forEach(log => {
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+                
+                // Escape string untuk aman dikirim ke fungsi onclick
+                const safeName = log.studentName.replace(/'/g, "\\'");
+
                 tr.innerHTML = `
                     <td class="py-3 px-4 text-xs font-mono text-slate-500">${log.timestamp}</td>
                     <td class="py-3 px-4 font-bold text-slate-800">${log.studentName}</td>
@@ -356,7 +347,7 @@
                     <td class="py-3 px-4 text-xs text-red-600 font-semibold">${log.reason}</td>
                     <td class="py-3 px-4 text-center">
                         <div class="flex items-center justify-center gap-1.5">
-                            <button onclick="sendForceSubmitCommand('${log.studentName}')" class="text-xs bg-red-600 hover:bg-red-700 text-white font-bold px-2.5 py-1 rounded transition shadow-sm" title="Paksa Submit Ujian Siswa Ini">
+                            <button onclick="sendForceSubmitCommand('${safeName}')" class="text-xs bg-red-600 hover:bg-red-700 text-white font-bold px-2.5 py-1 rounded transition shadow-sm" title="Paksa Submit Ujian Siswa Ini">
                                 🚨 Force Submit
                             </button>
                             <button onclick="deleteSingleLog(${log.id})" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded border border-slate-200">
@@ -369,7 +360,6 @@
             });
         }
 
-        // FUNGSI KIRIM COMMAND FORCE SUBMIT
         function sendForceSubmitCommand(targetStudentName) {
             Swal.fire({
                 title: 'Konfirmasi Submit Paksa',
@@ -426,9 +416,6 @@
             });
         }
 
-        // ==========================================
-        // 5. EKSPOR LAPORAN KE EXCEL
-        // ==========================================
         function exportLaporanExcel() {
             if (logsData.length === 0) {
                 Swal.fire('Informasi', 'Belum ada data log pelanggaran untuk diekspor.', 'info');
@@ -450,9 +437,6 @@
             XLSX.writeFile(workbook, `Laporan_Pelanggaran_CBT_${new Date().toISOString().slice(0,10)}.xlsx`);
         }
 
-        // ==========================================
-        // 6. GENERATOR TOTP & MODE JEDA GLOBAL
-        // ==========================================
         function startTOTPGenerator() {
             function updateTOTP() {
                 const epochSec = Math.floor(Date.now() / 1000);
