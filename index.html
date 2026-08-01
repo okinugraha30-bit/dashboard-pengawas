@@ -122,17 +122,20 @@
         function showDashboard() { document.getElementById('loginSection').classList.add('hidden'); document.getElementById('dashboardSection').classList.remove('hidden'); initPubNub(); }
 
         function handleLogin(e) {
-            e.preventDefault();
-            if (document.getElementById('username').value.trim() === AUTH_USER && document.getElementById('password').value.trim() === AUTH_PASS) {
-                localStorage.setItem('isProctorLoggedIn', 'true');
-                showDashboard();
-                rebuildRoomDropdown();
-                updateStats();
-                renderTable();
-            } else {
-                document.getElementById('loginErrorMessage').classList.remove('hidden');
-            }
-        }
+    e.preventDefault();
+    const user = document.getElementById('username').value.trim();
+    const pass = document.getElementById('password').value.trim();
+    
+    if (user === AUTH_USER && pass === AUTH_PASS) {
+        localStorage.setItem('isRoomPengawasLoggedIn', 'true');
+        showDashboard();
+        rebuildRoomDropdown();
+        updateStats();
+        renderTable();
+    } else {
+        document.getElementById('loginErrorMessage').classList.remove('hidden');
+    }
+}
 
         function logoutProctor() {
             if (confirm("Keluar dari Dashboard Proctor Utama?")) {
