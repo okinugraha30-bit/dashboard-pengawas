@@ -14,9 +14,8 @@
 
     <style>
         body { background-color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .card { border: none; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        .totp-box { background: #1e293b; color: #38bdf8; font-family: monospace; font-size: 2.2rem; font-weight: bold; letter-spacing: 4px; border-radius: 8px; padding: 10px; text-align: center; }
-        .badge-violation { font-size: 0.85rem; padding: 6px 12px; border-radius: 20px; }
+        .card { border: none; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.06); }
+        .totp-box { background: #0f172a; color: #38bdf8; font-family: monospace; font-size: 2.2rem; font-weight: bold; letter-spacing: 4px; border-radius: 8px; padding: 10px; text-align: center; }
         .table-responsive { max-height: 550px; overflow-y: auto; }
         .btn-pause-active { background-color: #dc2626 !important; color: white !important; border-color: #dc2626 !important; }
     </style>
@@ -24,21 +23,21 @@
 <body class="p-4">
 
 <div class="container-fluid">
-    <!-- HEADER & RUANG CONTROL -->
+    <!-- HEADER & CONTROL -->
     <div class="row mb-4 align-items-center">
-        <div class="col-md-6">
+        <div class="col-md-5">
             <h2 class="fw-bold text-dark m-0"><i class="fa-solid fa-shield-halved text-primary me-2"></i>Dashboard Pengawas CBT</h2>
             <p class="text-muted m-0">Monitoring Real-Time & Control Ujian Siswa</p>
         </div>
-        <div class="col-md-6 text-end">
+        <div class="col-md-7 text-end">
             <button id="btn-global-pause" class="btn btn-warning me-2 fw-bold" onclick="toggleGlobalPause()">
                 <i class="fa-solid fa-pause me-1"></i> Jeda Ujian (Global Pause)
             </button>
-            <button class="btn btn-success me-2" onclick="exportToExcel()">
+            <button class="btn btn-success me-2 fw-semibold" onclick="exportToExcel()">
                 <i class="fa-solid fa-file-excel me-1"></i> Export Log Excel
             </button>
             <input type="file" id="excel-file-input" accept=".xlsx, .xls" style="display: none;" onchange="handleRoomExcel(this)">
-            <button class="btn btn-outline-primary" onclick="document.getElementById('excel-file-input').click()">
+            <button class="btn btn-outline-primary fw-semibold" onclick="document.getElementById('excel-file-input').click()">
                 <i class="fa-solid fa-upload me-1"></i> Import Ruangan
             </button>
         </div>
@@ -83,21 +82,24 @@
     <div class="card p-3">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h5 class="fw-bold m-0"><i class="fa-solid fa-list-check me-2"></i>Log Pelanggaran & Status Siswa</h5>
-            <input type="text" id="search-student" class="form-control form-control-sm w-25" placeholder="Cari nama siswa..." onkeyup="filterStudentTable()">
+            <div class="d-flex gap-2">
+                <input type="text" id="search-student" class="form-control form-control-sm" style="width: 250px;" placeholder="Cari nama siswa..." onkeyup="filterStudentTable()">
+                <button class="btn btn-sm btn-outline-danger" onclick="clearDashboardData()"><i class="fa-solid fa-trash me-1"></i> Clear Log</button>
+            </div>
         </div>
 
         <div class="table-responsive">
             <table class="table table-hover align-middle" id="monitoringTable">
                 <thead class="table-dark">
                     <tr>
-                        <th style="width: 50px;">#</th>
+                        <th style="width: 40px;">#</th>
                         <th>Nama Siswa</th>
                         <th>Ruangan</th>
                         <th>Jenis Pelanggaran Terakhir</th>
-                        <th style="width: 100px;" class="text-center">Jml</th>
-                        <th style="width: 120px;" class="text-center">Waktu</th>
-                        <th style="width: 150px;" class="text-center">Status</th>
-                        <th style="width: 180px;" class="text-center">Aksi Pengawas</th>
+                        <th style="width: 70px;" class="text-center">Jml</th>
+                        <th style="width: 110px;" class="text-center">Waktu</th>
+                        <th style="width: 130px;" class="text-center">Status</th>
+                        <th style="width: 220px;" class="text-center">Aksi Pengawas</th>
                     </tr>
                 </thead>
                 <tbody id="studentTableBody">
@@ -116,9 +118,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script>
-    // ==========================================
-    // 1. INISIALISASI PUBNUB & KONEKSI
-    // ==========================================
     const pubnub = new PubNub({
         publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87",
         subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659",
@@ -127,13 +126,11 @@
 
     pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
 
-    // State Management
     let studentDataMap = {}; 
     let roomMappingMap = {}; 
     let isGlobalPaused = false;
     let totalViolationLogs = [];
 
-    // Listener PubNub untuk pesan masuk dari Moodle Siswa
     pubnub.addListener({
         message: function(msg) {
             const data = msg.message;
@@ -145,32 +142,11 @@
         }
     });
 
-    // Sync status Mode Jeda dari History PubNub saat Halaman Direfresh
-    pubnub.fetchMessages({
-        channels: ["cbt_monitoring_channel"],
-        count: 10
-    }, function(status, response) {
-        if (response && response.channels && response.channels["cbt_monitoring_channel"]) {
-            const messages = response.channels["cbt_monitoring_channel"];
-            for (let i = messages.length - 1; i >= 0; i--) {
-                if (messages[i].message && messages[i].message.type === "GLOBAL_PAUSE_SIGNAL") {
-                    isGlobalPaused = messages[i].message.isPaused;
-                    updatePauseButtonUI(isGlobalPaused);
-                    break;
-                }
-            }
-        }
-    });
-
-    // ==========================================
-    // 2. LOGIKA MONITORING SISWA & TABEL
-    // ==========================================
     function handleIncomingViolation(data) {
         const name = data.studentName;
         const reason = data.reason;
         const count = data.count;
         const time = data.timestamp;
-
         const room = findStudentRoom(name);
 
         if (!studentDataMap[name]) {
@@ -211,23 +187,31 @@
 
         students.forEach(s => {
             let statusBadge = s.isSubmitted 
-                ? `<span class="badge bg-success">FINISHED (FORCED)</span>`
+                ? `<span class="badge bg-success">FINISHED</span>`
                 : (s.isLocked 
                     ? `<span class="badge bg-danger">TERKUNCI</span>` 
-                    : `<span class="badge bg-warning text-dark">DIBUKA</span>`);
+                    : `<span class="badge bg-primary">AKTIF</span>`);
 
-            let actionButtons = s.isSubmitted 
-                ? `<span class="text-muted small fs-italic">Selesai</span>`
-                : `<button class="btn btn-sm btn-outline-danger me-1" onclick="forceSubmitStudent('${s.name}')" title="Submit Paksa & Akhiri Ujian">
-                     <i class="fa-solid fa-paper-plane"></i> Force Submit
-                   </button>`;
+            let actionButtons = '';
+            if (s.isSubmitted) {
+                actionButtons = `<span class="text-muted small fs-italic">Selesai</span>`;
+            } else {
+                actionButtons = `
+                    <button class="btn btn-sm btn-outline-success me-1" onclick="remoteUnlockStudent('${s.name}')" title="Buka Kunci Layar Remote">
+                        <i class="fa-solid fa-lock-open"></i> Unlock
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="forceSubmitStudent('${s.name}')" title="Submit Paksa">
+                        <i class="fa-solid fa-paper-plane"></i> Force Submit
+                    </button>
+                `;
+            }
 
             html += `
                 <tr>
                     <td>${index++}</td>
                     <td class="fw-bold student-name">${s.name}</td>
                     <td><span class="badge bg-secondary">${s.room}</span></td>
-                    <td class="text-danger small">${s.lastReason}</td>
+                    <td class="text-danger small fw-semibold">${s.lastReason}</td>
                     <td class="text-center fw-bold">${s.count}</td>
                     <td class="text-center small text-muted">${s.lastTime}</td>
                     <td class="text-center">${statusBadge}</td>
@@ -241,85 +225,69 @@
 
     function updateStatistics() {
         const students = Object.values(studentDataMap);
-        let totalViolations = totalViolationLogs.length;
-        let activeLocked = students.filter(s => s.isLocked && !s.isSubmitted).length;
-        let forcedSubmitted = students.filter(s => s.isSubmitted).length;
-
-        document.getElementById('stat-total-violations').innerText = totalViolations;
-        document.getElementById('stat-active-locked').innerText = activeLocked;
-        document.getElementById('stat-forced-submitted').innerText = forcedSubmitted;
+        document.getElementById('stat-total-violations').innerText = totalViolationLogs.length;
+        document.getElementById('stat-active-locked').innerText = students.filter(s => s.isLocked && !s.isSubmitted).length;
+        document.getElementById('stat-forced-submitted').innerText = students.filter(s => s.isSubmitted).length;
     }
 
-    // ==========================================
-    // 3. FITUR FORCE SUBMIT PAKSA & UPDATE UI
-    // ==========================================
+    // REMOTE UNLOCK DARI DASHBOARD
+    function remoteUnlockStudent(studentName) {
+        pubnub.publish({
+            channel: "cbt_monitoring_channel",
+            message: {
+                type: "REMOTE_UNLOCK_COMMAND",
+                targetStudent: studentName
+            }
+        }, function(status, response) {
+            if (!status.error) {
+                if (studentDataMap[studentName]) {
+                    studentDataMap[studentName].isLocked = false;
+                }
+                renderTable();
+                updateStatistics();
+                Swal.fire({ icon: 'success', title: 'Berhasil', text: `Sinyal Buka Kunci terkirim ke ${studentName}`, timer: 1500, showConfirmButton: false });
+            }
+        });
+    }
+
     function forceSubmitStudent(studentName) {
         Swal.fire({
             title: 'Konfirmasi Submit Paksa',
-            text: `Apakah Anda yakin ingin mengakhiri ujian dan SUBMIT PAKSA untuk siswa: "${studentName}"?`,
+            text: `Submit paksa dan akhiri ujian siswa: "${studentName}"?`,
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#dc2626',
-            cancelButtonColor: '#64748b',
-            confirmButtonText: 'Ya, Submit Paksa!',
-            cancelButtonText: 'Batal'
+            cancelButtonText: 'Batal',
+            confirmButtonText: 'Ya, Submit Paksa!'
         }).then((result) => {
             if (result.isConfirmed) {
                 pubnub.publish({
                     channel: "cbt_monitoring_channel",
                     message: {
                         type: "FORCE_SUBMIT_COMMAND",
-                        targetStudent: studentName,
-                        timestamp: new Date().toLocaleTimeString()
+                        targetStudent: studentName
                     }
                 }, function(status, response) {
                     if (!status.error) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Sinyal Terkirim!',
-                            text: `Perintah Force Submit telah dikirim ke ${studentName}.`,
-                            timer: 2000,
-                            showConfirmButton: false
-                        });
-
                         if (studentDataMap[studentName]) {
                             studentDataMap[studentName].isSubmitted = true;
                             studentDataMap[studentName].isLocked = false;
                         }
                         renderTable();
                         updateStatistics();
-                    } else {
-                        Swal.fire({ icon: 'error', title: 'Gagal', text: 'Gagal mengirim sinyal. Cek koneksi internet.' });
                     }
                 });
             }
         });
     }
 
-    // ==========================================
-    // 4. FITUR GLOBAL PAUSE (MODE JEDA UJIAN)
-    // ==========================================
     function toggleGlobalPause() {
         isGlobalPaused = !isGlobalPaused;
-        
         pubnub.publish({
             channel: "cbt_monitoring_channel",
-            message: {
-                type: "GLOBAL_PAUSE_SIGNAL",
-                isPaused: isGlobalPaused,
-                timestamp: new Date().toLocaleTimeString()
-            }
-        }, function(status, response) {
-            if (!status.error) {
-                updatePauseButtonUI(isGlobalPaused);
-                Swal.fire({
-                    icon: isGlobalPaused ? 'warning' : 'info',
-                    title: isGlobalPaused ? 'Ujian Dijeda!' : 'Ujian Dilanjutkan!',
-                    text: isGlobalPaused ? 'Seluruh deteksi sistem pengawasan dinonaktifkan sementara.' : 'Deteksi sistem pengawasan kembali aktif.',
-                    timer: 2000,
-                    showConfirmButton: false
-                });
-            }
+            message: { type: "GLOBAL_PAUSE_SIGNAL", isPaused: isGlobalPaused }
+        }, function() {
+            updatePauseButtonUI(isGlobalPaused);
         });
     }
 
@@ -334,15 +302,11 @@
         }
     }
 
-    // ==========================================
-    // 5. GENERATOR TOKEN TOTP (180 DETIK)
-    // ==========================================
+    // TOTP GENERATOR
     const SECRET_SALT = "CBT_SECRET_KEY_2026";
-
     function generateTOTP() {
         const epochSec = Math.floor(Date.now() / 1000);
-        const timeStep = Math.floor(epochSec / 180); // Berubah tiap 3 menit (180s)
-        
+        const timeStep = Math.floor(epochSec / 180);
         let hash = 0;
         const str = SECRET_SALT + timeStep;
         for (let i = 0; i < str.length; i++) {
@@ -355,41 +319,30 @@
     function updateTOTPTimer() {
         const epochSec = Math.floor(Date.now() / 1000);
         const remainingSec = 180 - (epochSec % 180);
-        
         document.getElementById('totp-display').innerText = generateTOTP();
         document.getElementById('totp-timer-text').innerText = `Memperbarui dalam ${remainingSec} detik...`;
-        
-        const progressPercent = (remainingSec / 180) * 100;
-        document.getElementById('totp-progress').style.width = progressPercent + "%";
+        document.getElementById('totp-progress').style.width = ((remainingSec / 180) * 100) + "%";
     }
-
     setInterval(updateTOTPTimer, 1000);
     updateTOTPTimer();
 
-    // ==========================================
-    // 6. IMPORT EXCEL RUANGAN & EXPORT LOG
-    // ==========================================
+    // IMPORT EXCEL & EXPORT
     function handleRoomExcel(input) {
         const file = input.files[0];
         if (!file) return;
-
         const reader = new FileReader();
         reader.onload = function(e) {
             const data = new Uint8Array(e.target.result);
             const workbook = XLSX.read(data, { type: 'array' });
             const sheet = workbook.Sheets[workbook.SheetNames[0]];
             const json = XLSX.utils.sheet_to_json(sheet);
-
             roomMappingMap = {};
             json.forEach(row => {
-                const studentName = row['Nama'] || row['Nama Siswa'] || row['Nama Peserta'];
-                const roomName = row['Ruangan'] || row['Ruang'] || row['Kelas'];
-                if (studentName && roomName) {
-                    roomMappingMap[String(studentName).trim().toLowerCase()] = String(roomName).trim();
-                }
+                const sName = row['Nama'] || row['Nama Siswa'] || row['Nama Peserta'];
+                const rName = row['Ruangan'] || row['Ruang'] || row['Kelas'];
+                if (sName && rName) roomMappingMap[String(sName).trim().toLowerCase()] = String(rName).trim();
             });
-
-            Swal.fire({ icon: 'success', title: 'Import Berhasil!', text: `Memuat ${Object.keys(roomMappingMap).length} data ruangan siswa.` });
+            Swal.fire({ icon: 'success', title: 'Berhasil', text: `${Object.keys(roomMappingMap).length} Data Ruangan Di-import.` });
         };
         reader.readAsArrayBuffer(file);
     }
@@ -397,37 +350,33 @@
     function findStudentRoom(studentName) {
         const clean = String(studentName || '').trim().toLowerCase();
         for (let key in roomMappingMap) {
-            if (clean.includes(key) || key.includes(clean)) {
-                return roomMappingMap[key];
-            }
+            if (clean.includes(key) || key.includes(clean)) return roomMappingMap[key];
         }
         return "Umum";
     }
 
     function exportToExcel() {
-        if (totalViolationLogs.length === 0) {
-            Swal.fire({ icon: 'info', title: 'Data Kosong', text: 'Belum ada log pelanggaran yang dapat diexport.' });
-            return;
-        }
+        if (totalViolationLogs.length === 0) return Swal.fire({ icon: 'info', title: 'Data Kosong' });
+        const ws = XLSX.utils.json_to_sheet(totalViolationLogs);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Log Pelanggaran");
+        XLSX.writeFile(wb, `Log_Pelanggaran_CBT_${new Date().toISOString().slice(0,10)}.xlsx`);
+    }
 
-        const worksheet = XLSX.utils.json_to_sheet(totalViolationLogs);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Log Pelanggaran");
-        XLSX.writeFile(workbook, `Log_Pelanggaran_CBT_${new Date().toISOString().slice(0,10)}.xlsx`);
+    function clearDashboardData() {
+        studentDataMap = {};
+        totalViolationLogs = [];
+        renderTable();
+        updateStatistics();
     }
 
     function filterStudentTable() {
         const query = document.getElementById('search-student').value.toLowerCase();
-        const rows = document.querySelectorAll('#studentTableBody tr');
-        rows.forEach(row => {
+        document.querySelectorAll('#studentTableBody tr').forEach(row => {
             const nameCell = row.querySelector('.student-name');
-            if (nameCell) {
-                const text = nameCell.innerText.toLowerCase();
-                row.style.display = text.includes(query) ? '' : 'none';
-            }
+            if (nameCell) row.style.display = nameCell.innerText.toLowerCase().includes(query) ? '' : 'none';
         });
     }
 </script>
-
 </body>
 </html>
