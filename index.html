@@ -154,6 +154,16 @@
             localStorage.setItem('cbt_exam_paused', JSON.stringify(isExamPaused));
         }
 
+        // Fungsi normalisasi untuk menyamakan kunci pencocokan nama
+        function getCleanKey(nameStr) {
+            if (!nameStr) return "";
+            return nameStr
+                .split(' - ')[0]
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '')
+                .trim();
+        }
+
         function initPubNub() {
             if (typeof PubNub !== 'undefined' && !pubnub) {
                 pubnub = new PubNub({ publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87", subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659", uuid: "proctor_utama" });
@@ -167,7 +177,7 @@
         function handleIncomingViolation(data) {
             const rawName = data.studentName || "";
             const cleanName = rawName.split(' - ')[0].trim().replace(/\s+/g, ' ');
-            const lookupKey = cleanName.toLowerCase();
+            const lookupKey = getCleanKey(cleanName);
             
             const assignedRoom = studentRoomMap[lookupKey] || data.roomName || "Ruang Ujian";
 
@@ -188,12 +198,13 @@
 
         function rebuildRoomDropdown() {
             const selectEl = document.getElementById('roomFilter');
+            if (!selectEl) return;
             const currentVal = selectEl.value;
             
             const rooms = new Set(Object.values(studentRoomMap));
             Object.values(studentLogs).forEach(i => {
-                const cleanName = (i.name || "").split(' - ')[0].trim().toLowerCase();
-                const effectiveRoom = studentRoomMap[cleanName] || i.room;
+                const lookupKey = getCleanKey(i.name);
+                const effectiveRoom = studentRoomMap[lookupKey] || i.room;
                 if (effectiveRoom) rooms.add(effectiveRoom);
             });
             
@@ -209,9 +220,7 @@
             const roomVal = document.getElementById('roomFilter').value;
 
             const logsArray = Object.values(studentLogs).filter(i => {
-                const cleanName = (i.name || "").split(' - ')[0].trim();
-                const lookupKey = cleanName.toLowerCase();
-                
+                const lookupKey = getCleanKey(i.name);
                 const effectiveRoom = studentRoomMap[lookupKey] || i.room || "Ruang Ujian";
                 i.room = effectiveRoom; 
                 
@@ -279,13 +288,12 @@
                             let temp = sName; sName = sRoom; sRoom = temp;
                         }
 
-                        const sNameKey = sName.toLowerCase();
+                        const sNameKey = getCleanKey(sName);
                         studentRoomMap[sNameKey] = sRoom;
                         rooms.add(sRoom);
                         
                         Object.keys(studentLogs).forEach(k => {
-                            const cleanExistingName = k.split(' - ')[0].trim().replace(/\s+/g, ' ').toLowerCase();
-                            if (cleanExistingName === sNameKey) {
+                            if (getCleanKey(k) === sNameKey) {
                                 studentLogs[k].room = sRoom;
                             }
                         });
@@ -345,13 +353,13 @@
             const roomVal = document.getElementById('roomFilter').value;
             const data = Object.values(studentLogs)
                 .filter(i => {
-                    const cleanName = (i.name || "").split(' - ')[0].trim().toLowerCase();
-                    const effectiveRoom = studentRoomMap[cleanName] || i.room || "Ruang Ujian";
+                    const lookupKey = getCleanKey(i.name);
+                    const effectiveRoom = studentRoomMap[lookupKey] || i.room || "Ruang Ujian";
                     return roomVal === "ALL" || effectiveRoom === roomVal;
                 })
                 .map((i, idx) => {
-                    const cleanName = (i.name || "").split(' - ')[0].trim().toLowerCase();
-                    const effectiveRoom = studentRoomMap[cleanName] || i.room || "Ruang Ujian";
+                    const lookupKey = getCleanKey(i.name);
+                    const effectiveRoom = studentRoomMap[lookupKey] || i.room || "Ruang Ujian";
                     return { "No": idx + 1, "Nama Siswa": i.name, "Ruangan": effectiveRoom, "Pelanggaran": i.reason, "Jumlah": i.count, "Waktu": i.time, "Status": i.status };
                 });
             
