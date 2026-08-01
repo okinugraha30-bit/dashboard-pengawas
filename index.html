@@ -10,7 +10,7 @@
     <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen" translate="no">
+<body class="bg-slate-900 text-slate-100 min-h-screen select-none" translate="no" oncontextmenu="return false;">
 
     <!-- LOGIN PROCTOR UTAMA -->
     <div id="loginSection" class="min-h-screen flex items-center justify-center p-4">
@@ -154,7 +154,6 @@
             localStorage.setItem('cbt_exam_paused', JSON.stringify(isExamPaused));
         }
 
-        // Fungsi normalisasi untuk menyamakan kunci pencocokan nama
         function getCleanKey(nameStr) {
             if (!nameStr) return "";
             return nameStr
@@ -178,7 +177,6 @@
             const rawName = data.studentName || "";
             const cleanName = rawName.split(' - ')[0].trim().replace(/\s+/g, ' ');
             const lookupKey = getCleanKey(cleanName);
-            
             const assignedRoom = studentRoomMap[lookupKey] || data.roomName || "Ruang Ujian";
 
             if (!studentLogs[cleanName]) {
