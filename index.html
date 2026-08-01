@@ -41,7 +41,7 @@
                 📂 Upload Data Ruang (Excel)
             </button>
             <button id="btn-toggle-pause" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition">
-                🔒 Mode Jeda: NONAKTIF
+                🔓 Mode Jeda: NONAKTIF
             </button>
             
             <!-- TOTP TOKEN BOX -->
@@ -109,7 +109,7 @@
                             <th class="py-3 px-4">Nama Siswa / Username</th>
                             <th class="py-3 px-4">Ruangan</th>
                             <th class="py-3 px-4">Pelanggaran</th>
-                            <th class="py-3 px-4 text-center">Aksi</th>
+                            <th class="py-3 px-4 text-center">Status / Aksi</th>
                         </tr>
                     </thead>
                     <tbody id="table-log-body" class="divide-y divide-slate-200">
@@ -127,6 +127,7 @@
     <script>
         const SECRET_SALT = "CBT_SECRET_KEY_2026";
         let logsData = JSON.parse(localStorage.getItem('cbt_logs_data') || '[]');
+        let forcedSubmittedStudents = JSON.parse(localStorage.getItem('cbt_forced_students') || '[]');
         let isPaused = localStorage.getItem('cbt_global_paused') === 'true';
 
         // PubNub Setup
@@ -333,8 +334,14 @@
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
                 
-                // Escape string untuk aman dikirim ke fungsi onclick
                 const safeName = log.studentName.replace(/'/g, "\\'");
+                const isForced = forcedSubmittedStudents.includes(log.studentName.toLowerCase());
+
+                let actionButton = isForced 
+                    ? `<span class="px-2.5 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-700">FINISHED (FORCED)</span>`
+                    : `<button onclick="sendForceSubmitCommand('${safeName}')" class="text-xs bg-red-600 hover:bg-red-700 text-white font-bold px-2.5 py-1 rounded transition shadow-sm" title="Paksa Submit Ujian Siswa Ini">
+                        🚨 Force Submit
+                       </button>`;
 
                 tr.innerHTML = `
                     <td class="py-3 px-4 text-xs font-mono text-slate-500">${log.timestamp}</td>
@@ -347,9 +354,7 @@
                     <td class="py-3 px-4 text-xs text-red-600 font-semibold">${log.reason}</td>
                     <td class="py-3 px-4 text-center">
                         <div class="flex items-center justify-center gap-1.5">
-                            <button onclick="sendForceSubmitCommand('${safeName}')" class="text-xs bg-red-600 hover:bg-red-700 text-white font-bold px-2.5 py-1 rounded transition shadow-sm" title="Paksa Submit Ujian Siswa Ini">
-                                🚨 Force Submit
-                            </button>
+                            ${actionButton}
                             <button onclick="deleteSingleLog(${log.id})" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded border border-slate-200">
                                 Hapus
                             </button>
@@ -381,6 +386,13 @@
                         }
                     });
 
+                    if (!forcedSubmittedStudents.includes(targetStudentName.toLowerCase())) {
+                        forcedSubmittedStudents.push(targetStudentName.toLowerCase());
+                        localStorage.setItem('cbt_forced_students', JSON.stringify(forcedSubmittedStudents));
+                    }
+
+                    renderTableLogs();
+
                     Swal.fire({
                         icon: 'success',
                         title: 'Perintah Terkirim!',
@@ -409,7 +421,9 @@
             }).then((result) => {
                 if (result.isConfirmed) {
                     logsData = [];
+                    forcedSubmittedStudents = [];
                     localStorage.setItem('cbt_logs_data', JSON.stringify(logsData));
+                    localStorage.setItem('cbt_forced_students', JSON.stringify(forcedSubmittedStudents));
                     renderTableLogs();
                     Swal.fire('Bersih!', 'Log pelanggaran telah dikosongkan.', 'success');
                 }
