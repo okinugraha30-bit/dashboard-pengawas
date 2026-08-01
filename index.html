@@ -3,170 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Mencegah Google Translate & Browser Auto-Translate Prompt secara universal -->
     <meta name="google" content="notranslate">
     <meta http-equiv="Content-Language" content="id">
-    
-    <title>Dashboard Pengawas CBT</title>
+    <title>Dashboard Proctor Utama CBT</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body class="bg-slate-900 text-slate-100 min-h-screen" translate="no">
 
-    <!-- ========================================== -->
-    <!-- SECTION 1: HALAMAN LOGIN PENGAWAS          -->
-    <!-- ========================================== -->
+    <!-- LOGIN PROCTOR UTAMA -->
     <div id="loginSection" class="min-h-screen flex items-center justify-center p-4">
         <div class="bg-slate-800 p-8 rounded-2xl border border-slate-700 w-full max-w-md shadow-2xl space-y-6">
             <div class="text-center space-y-2">
                 <div class="inline-flex bg-blue-600 p-3 rounded-xl mb-2">
                     <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
                 </div>
-                <h2 class="text-2xl font-bold text-slate-100">Login Pengawas</h2>
-                <p class="text-xs text-slate-400">Masukkan kredensial untuk mengakses Dashboard Monitoring CBT</p>
+                <h2 class="text-2xl font-bold text-slate-100">Login Proctor Utama</h2>
+                <p class="text-xs text-slate-400">Akses Penuh Kontrol & Monitoring CBT</p>
             </div>
-
-            <!-- Form Login dengan atribut pencegah Save Password lintas browser -->
             <form onsubmit="handleLogin(event)" class="space-y-4" autocomplete="off">
-                <!-- Dummy inputs untuk mengecoh browser autofill / password manager -->
                 <input type="text" style="display:none" name="fakeusernameremembered">
                 <input type="password" style="display:none" name="fakepasswordremembered">
-
                 <div>
-                    <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Username / ID Pengawas</label>
-                    <input type="text" id="username" required autocomplete="off" data-lpignore="true" placeholder="Masukkan username" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 outline-none focus:border-blue-500 transition">
+                    <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Username</label>
+                    <input type="text" id="username" required autocomplete="off" data-lpignore="true" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 outline-none focus:border-blue-500">
                 </div>
-
                 <div>
                     <label class="block text-xs font-semibold text-slate-400 uppercase mb-1">Password</label>
-                    <input type="password" id="password" required autocomplete="new-password" data-lpignore="true" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 outline-none focus:border-blue-500 transition">
+                    <input type="password" id="password" required autocomplete="new-password" data-lpignore="true" class="w-full bg-slate-900 border border-slate-700 rounded-lg px-4 py-2.5 text-slate-200 outline-none focus:border-blue-500">
                 </div>
-
-                <div id="loginErrorMessage" class="text-rose-400 text-xs text-center hidden font-medium">
-                    Username atau Password salah!
-                </div>
-
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg transition shadow-lg shadow-blue-600/30">
-                    Masuk Dashboard
-                </button>
+                <div id="loginErrorMessage" class="text-rose-400 text-xs text-center hidden font-medium">Username atau Password salah!</div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-2.5 rounded-lg transition shadow-lg shadow-blue-600/30">Masuk Proctor Utama</button>
             </form>
         </div>
     </div>
 
-
-    <!-- ========================================== -->
-    <!-- SECTION 2: DASHBOARD MONITORING (HIDDEN)  -->
-    <!-- ========================================== -->
+    <!-- DASHBOARD UTAMA -->
     <div id="dashboardSection" class="hidden">
-        <!-- Navbar Header Dashboard Pengawas -->
         <header class="bg-slate-800 border-b border-slate-700 p-4 sticky top-0 z-50">
             <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
                 <div class="flex items-center gap-3">
-                    <div class="bg-blue-600 p-2 rounded-lg">
-                        <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-                    </div>
+                    <div class="bg-blue-600 p-2 rounded-lg"><svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div>
                     <div>
-                        <h1 class="text-xl font-bold">Dashboard Pengawas CBT</h1>
-                        <p class="text-xs text-slate-400">Monitoring Real-Time & Control Ujian Siswa</p>
+                        <h1 class="text-xl font-bold">Dashboard Proctor Utama</h1>
+                        <p class="text-xs text-slate-400">Full Control & Monitoring Ujian</p>
                     </div>
                 </div>
-                
                 <div class="flex flex-wrap items-center gap-3">
-                    <button id="globalPauseBtn" onclick="toggleGlobalPause()" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <span>Jeda Ujian</span>
-                    </button>
-                    <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
-                        Export Excel
-                    </button>
+                    <button id="globalPauseBtn" onclick="toggleGlobalPause()" class="bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition">Jeda Ujian</button>
+                    <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition">Export Excel</button>
                     <label class="bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 cursor-pointer transition">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
                         Import Ruangan
                         <input type="file" id="excelFileInput" accept=".xlsx, .xls" class="hidden" onchange="importExcelRuangan(event)">
                     </label>
-
-                    <!-- TOMBOL LOGOUT PENGAWAS -->
-                    <button onclick="logoutPengawas()" class="bg-rose-600 hover:bg-rose-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition border border-rose-500/30">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
-                        <span>Logout</span>
-                    </button>
+                    <button onclick="logoutProctor()" class="bg-rose-600 hover:bg-rose-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition">Logout</button>
                 </div>
             </div>
         </header>
 
-        <!-- Main Body -->
         <main class="max-w-7xl mx-auto p-4 space-y-6">
-            <!-- Summary Cards -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 flex items-center justify-between">
-                    <div>
-                        <p class="text-xs text-slate-400 font-semibold uppercase">Total Pelanggaran</p>
-                        <h3 id="statTotalViolations" class="text-3xl font-bold mt-1 text-slate-100">0</h3>
-                    </div>
-                    <div class="p-3 bg-red-500/10 text-red-400 rounded-lg">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                    </div>
+                    <div><p class="text-xs text-slate-400 font-semibold uppercase">Total Pelanggaran</p><h3 id="statTotalViolations" class="text-3xl font-bold mt-1 text-slate-100">0</h3></div>
                 </div>
-
                 <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 flex items-center justify-between">
-                    <div>
-                        <p class="text-xs text-slate-400 font-semibold uppercase">Siswa Terkunci</p>
-                        <h3 id="statLockedStudents" class="text-3xl font-bold mt-1 text-amber-400">0</h3>
-                    </div>
-                    <div class="p-3 bg-amber-500/10 text-amber-400 rounded-lg">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                    </div>
+                    <div><p class="text-xs text-slate-400 font-semibold uppercase">Siswa Terkunci</p><h3 id="statLockedStudents" class="text-3xl font-bold mt-1 text-amber-400">0</h3></div>
                 </div>
-
                 <div class="bg-slate-800 p-5 rounded-xl border border-slate-700 flex items-center justify-between">
-                    <div>
-                        <p class="text-xs text-slate-400 font-semibold uppercase">Force Submitted</p>
-                        <h3 id="statForceSubmitted" class="text-3xl font-bold mt-1 text-emerald-400">0</h3>
-                    </div>
-                    <div class="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                    </div>
+                    <div><p class="text-xs text-slate-400 font-semibold uppercase">Force Submitted</p><h3 id="statForceSubmitted" class="text-3xl font-bold mt-1 text-emerald-400">0</h3></div>
                 </div>
             </div>
 
-            <!-- Filter Controls -->
             <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
                 <div class="flex flex-wrap items-center gap-3 w-full md:w-auto">
-                    <select id="roomFilter" onchange="renderTable()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-blue-500">
-                        <option value="ALL">Semua Ruangan</option>
-                    </select>
-
-                    <input type="text" id="searchInput" onkeyup="renderTable()" placeholder="Cari nama siswa..." class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none focus:border-blue-500 w-full md:w-64">
+                    <select id="roomFilter" onchange="renderTable()" class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none"><option value="ALL">Semua Ruangan</option></select>
+                    <input type="text" id="searchInput" onkeyup="renderTable()" placeholder="Cari nama siswa..." class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none w-full md:w-64">
                 </div>
-
-                <button onclick="resetViolationLogs()" class="bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 transition w-full md:w-auto justify-center">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                    Reset Log Pelanggaran
-                </button>
+                <button onclick="resetViolationLogs()" class="bg-rose-600/20 hover:bg-rose-600 text-rose-300 hover:text-white border border-rose-500/30 px-3 py-2 rounded-lg text-xs font-semibold transition">Reset Log Pelanggaran</button>
             </div>
 
-            <!-- Tabel Log Pelanggaran -->
             <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-xl">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-sm text-slate-300">
                         <thead class="bg-slate-950/50 text-slate-400 uppercase text-xs font-semibold">
                             <tr>
-                                <th class="p-4">#</th>
-                                <th class="p-4">Nama Siswa</th>
-                                <th class="p-4">Ruangan</th>
-                                <th class="p-4">Jenis Pelanggaran</th>
-                                <th class="p-4">Jumlah</th>
-                                <th class="p-4">Waktu</th>
-                                <th class="p-4">Status</th>
-                                <th class="p-4 text-center">Aksi Pengawas</th>
+                                <th class="p-4">#</th><th class="p-4">Nama Siswa</th><th class="p-4">Ruangan</th><th class="p-4">Jenis Pelanggaran</th><th class="p-4">Jumlah</th><th class="p-4">Waktu</th><th class="p-4">Status</th><th class="p-4 text-center">Aksi Proctor</th>
                             </tr>
                         </thead>
                         <tbody id="violationTableBody" class="divide-y divide-slate-700/50">
-                            <tr>
-                                <td colspan="8" class="p-8 text-center text-slate-500">Belum ada log pelanggaran terdeteksi.</td>
-                            </tr>
+                            <tr><td colspan="8" class="p-8 text-center text-slate-500">Belum ada log pelanggaran terdeteksi.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -174,289 +100,196 @@
         </main>
     </div>
 
-    <!-- ========================================== -->
-    <!-- LOGIK JAVASCRIPT: AUTH & DASHBOARD        -->
-    <!-- ========================================== -->
     <script>
         const AUTH_USER = "admin";
         const AUTH_PASS = "admin123";
+        let studentLogs = JSON.parse(localStorage.getItem('cbt_student_logs')) || {};
+        let studentRoomMap = JSON.parse(localStorage.getItem('cbt_room_map')) || {};
+        let isGlobalPaused = false, pubnub = null;
 
-        let studentLogs = {}; 
-        let studentRoomMap = {}; 
-        let isGlobalPaused = false;
-        let pubnub = null;
-
-        document.addEventListener('DOMContentLoaded', function() {
-            const isLoggedIn = localStorage.getItem('isPengawasLoggedIn');
-            if (isLoggedIn === 'true') {
+        document.addEventListener('DOMContentLoaded', () => {
+            if (localStorage.getItem('isProctorLoggedIn') === 'true') {
                 showDashboard();
+                rebuildRoomDropdown();
+                updateStats();
+                renderTable();
             } else {
                 showLogin();
             }
         });
 
-        function showLogin() {
-            document.getElementById('loginSection').classList.remove('hidden');
-            document.getElementById('dashboardSection').classList.add('hidden');
-        }
-
-        function showDashboard() {
-            document.getElementById('loginSection').classList.add('hidden');
-            document.getElementById('dashboardSection').classList.remove('hidden');
-            initPubNub();
-        }
+        function showLogin() { document.getElementById('loginSection').classList.remove('hidden'); document.getElementById('dashboardSection').classList.add('hidden'); }
+        function showDashboard() { document.getElementById('loginSection').classList.add('hidden'); document.getElementById('dashboardSection').classList.remove('hidden'); initPubNub(); }
 
         function handleLogin(e) {
             e.preventDefault();
-            const userIn = document.getElementById('username').value.trim();
-            const passIn = document.getElementById('password').value.trim();
-            const errEl = document.getElementById('loginErrorMessage');
-
-            if (userIn === AUTH_USER && passIn === AUTH_PASS) {
-                errEl.classList.add('hidden');
-                localStorage.setItem('isPengawasLoggedIn', 'true');
+            if (document.getElementById('username').value.trim() === AUTH_USER && document.getElementById('password').value.trim() === AUTH_PASS) {
+                localStorage.setItem('isProctorLoggedIn', 'true');
                 showDashboard();
+                rebuildRoomDropdown();
+                updateStats();
+                renderTable();
             } else {
-                errEl.classList.remove('hidden');
+                document.getElementById('loginErrorMessage').classList.remove('hidden');
             }
         }
 
-        function logoutPengawas() {
-            if (confirm("Apakah Anda yakin ingin keluar dari Dashboard Pengawas?")) {
-                localStorage.removeItem('isPengawasLoggedIn');
-                document.getElementById('username').value = '';
-                document.getElementById('password').value = '';
+        function logoutProctor() {
+            if (confirm("Keluar dari Dashboard Proctor Utama?")) {
+                localStorage.removeItem('isProctorLoggedIn');
                 showLogin();
             }
         }
 
+        function saveData() {
+            localStorage.setItem('cbt_student_logs', JSON.stringify(studentLogs));
+            localStorage.setItem('cbt_room_map', JSON.stringify(studentRoomMap));
+        }
+
         function initPubNub() {
             if (typeof PubNub !== 'undefined' && !pubnub) {
-                pubnub = new PubNub({
-                    publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87",
-                    subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659",
-                    uuid: "supervisor_dashboard"
-                });
-
+                pubnub = new PubNub({ publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87", subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659", uuid: "proctor_main" });
                 pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
-
-                pubnub.addListener({
-                    message: function(msg) {
-                        const data = msg.message;
-                        if (data && data.type === "VIOLATION") {
-                            handleIncomingViolation(data);
-                        }
-                    }
-                });
+                pubnub.addListener({ message: (msg) => { if (msg.message && msg.message.type === "VIOLATION") handleIncomingViolation(msg.message); } });
             }
         }
 
         function handleIncomingViolation(data) {
             const sName = data.studentName;
+            const assignedRoom = studentRoomMap[sName.toLowerCase()] || "Ruang 01";
             
             if (!studentLogs[sName]) {
-                studentLogs[sName] = {
-                    name: sName,
-                    room: studentRoomMap[sName.toLowerCase()] || "Ruang 01",
-                    reason: data.reason,
-                    count: data.count,
-                    time: data.timestamp,
-                    status: "LOCKED"
-                };
+                studentLogs[sName] = { name: sName, room: assignedRoom, reason: data.reason, count: data.count, time: data.timestamp, status: "LOCKED" };
             } else {
+                studentLogs[sName].room = assignedRoom;
                 studentLogs[sName].reason = data.reason;
                 studentLogs[sName].count = data.count;
                 studentLogs[sName].time = data.timestamp;
-                if (studentLogs[sName].status !== "FORCE_SUBMITTED") {
-                    studentLogs[sName].status = "LOCKED";
-                }
+                if (studentLogs[sName].status !== "FORCE_SUBMITTED") studentLogs[sName].status = "LOCKED";
             }
-
-            updateStats();
+            saveData();
+            updateStats(); 
             renderTable();
+        }
+
+        function rebuildRoomDropdown() {
+            const selectEl = document.getElementById('roomFilter');
+            const currentVal = selectEl.value;
+            const rooms = new Set(Object.values(studentRoomMap));
+            
+            selectEl.innerHTML = `<option value="ALL">Semua Ruangan</option>`;
+            rooms.forEach(r => selectEl.innerHTML += `<option value="${r}">${r}</option>`);
+            selectEl.value = currentVal;
         }
 
         function renderTable() {
             const tbody = document.getElementById('violationTableBody');
             if (!tbody) return;
-
             const searchVal = document.getElementById('searchInput').value.toLowerCase();
             const roomVal = document.getElementById('roomFilter').value;
-
-            const logsArray = Object.values(studentLogs).filter(item => {
-                const matchName = item.name.toLowerCase().includes(searchVal);
-                const matchRoom = roomVal === "ALL" || item.room === roomVal;
-                return matchName && matchRoom;
-            });
+            const logsArray = Object.values(studentLogs).filter(i => i.name.toLowerCase().includes(searchVal) && (roomVal === "ALL" || i.room === roomVal));
 
             if (logsArray.length === 0) {
                 tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-slate-500">Belum ada log pelanggaran terdeteksi.</td></tr>`;
                 return;
             }
 
-            tbody.innerHTML = logsArray.map((item, index) => {
-                let statusBadge = item.status === "LOCKED" 
-                    ? `<span class="bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs px-2.5 py-1 rounded-full font-semibold">Terkunci</span>`
-                    : item.status === "FORCE_SUBMITTED"
-                    ? `<span class="bg-red-500/10 text-red-400 border border-red-500/20 text-xs px-2.5 py-1 rounded-full font-semibold">Force Submitted</span>`
-                    : `<span class="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs px-2.5 py-1 rounded-full font-semibold">Aktif</span>`;
-
-                return `
-                    <tr class="hover:bg-slate-800/50 transition">
-                        <td class="p-4 font-mono text-slate-500">${index + 1}</td>
-                        <td class="p-4 font-semibold text-slate-100">${item.name}</td>
-                        <td class="p-4 text-slate-400"><span class="bg-slate-900 px-2 py-1 rounded text-xs border border-slate-700">${item.room}</span></td>
-                        <td class="p-4 text-slate-300">${item.reason}</td>
-                        <td class="p-4 font-bold text-red-400">${item.count}x</td>
-                        <td class="p-4 font-mono text-xs text-slate-400">${item.time}</td>
-                        <td class="p-4">${statusBadge}</td>
-                        <td class="p-4 text-center space-x-2">
-                            <button onclick="unlockStudent('${item.name}')" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-md transition">Buka Kunci</button>
-                            <button onclick="forceSubmitStudent('${item.name}')" class="bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold px-3 py-1.5 rounded-md transition">Force Submit</button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
+            tbody.innerHTML = logsArray.map((item, index) => `
+                <tr class="hover:bg-slate-800/50 transition">
+                    <td class="p-4 font-mono text-slate-500">${index + 1}</td>
+                    <td class="p-4 font-semibold text-slate-100">${item.name}</td>
+                    <td class="p-4"><span class="bg-slate-900 px-2 py-1 rounded text-xs border border-slate-700">${item.room}</span></td>
+                    <td class="p-4 text-slate-300">${item.reason}</td>
+                    <td class="p-4 font-bold text-red-400">${item.count}x</td>
+                    <td class="p-4 font-mono text-xs text-slate-400">${item.time}</td>
+                    <td class="p-4"><span class="${item.status === 'LOCKED' ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : item.status === 'FORCE_SUBMITTED' ? 'bg-red-500/10 text-red-400 border-red-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'} border text-xs px-2.5 py-1 rounded-full font-semibold">${item.status}</span></td>
+                    <td class="p-4 text-center space-x-2">
+                        <button onclick="unlockStudent('${item.name}')" class="bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 py-1.5 rounded-md transition">Buka Kunci</button>
+                        <button onclick="forceSubmitStudent('${item.name}')" class="bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold px-3 py-1.5 rounded-md transition">Force Submit</button>
+                    </td>
+                </tr>
+            `).join('');
         }
 
-        function unlockStudent(studentName) {
-            if (pubnub) {
-                pubnub.publish({
-                    channel: "cbt_monitoring_channel",
-                    message: { type: "REMOTE_UNLOCK_COMMAND", targetStudent: studentName }
-                });
-            }
-
-            if (studentLogs[studentName]) {
-                studentLogs[studentName].status = "ACTIVE";
-                updateStats();
-                renderTable();
-            }
+        function unlockStudent(name) {
+            if (pubnub) pubnub.publish({ channel: "cbt_monitoring_channel", message: { type: "REMOTE_UNLOCK_COMMAND", targetStudent: name } });
+            if (studentLogs[name]) { studentLogs[name].status = "ACTIVE"; saveData(); updateStats(); renderTable(); }
         }
 
-        function forceSubmitStudent(studentName) {
-            if (confirm(`Yakin ingin mengumpulkan paksa (Force Submit) ujian ${studentName}?`)) {
-                if (pubnub) {
-                    pubnub.publish({
-                        channel: "cbt_monitoring_channel",
-                        message: { type: "FORCE_SUBMIT_COMMAND", targetStudent: studentName }
-                    });
-                }
-
-                if (studentLogs[studentName]) {
-                    studentLogs[studentName].status = "FORCE_SUBMITTED";
-                    updateStats();
-                    renderTable();
-                }
+        function forceSubmitStudent(name) {
+            if (confirm(`Force Submit ujian ${name}?`)) {
+                if (pubnub) pubnub.publish({ channel: "cbt_monitoring_channel", message: { type: "FORCE_SUBMIT_COMMAND", targetStudent: name } });
+                if (studentLogs[name]) { studentLogs[name].status = "FORCE_SUBMITTED"; saveData(); updateStats(); renderTable(); }
             }
         }
 
         function toggleGlobalPause() {
             isGlobalPaused = !isGlobalPaused;
             const btn = document.getElementById('globalPauseBtn');
-            if (btn) {
-                btn.className = isGlobalPaused 
-                    ? "bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition"
-                    : "bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 transition";
-                
-                btn.innerHTML = isGlobalPaused
-                    ? `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/></svg><span>Lanjutkan Ujian</span>`
-                    : `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>Jeda Ujian</span>`;
-            }
-
-            if (pubnub) {
-                pubnub.publish({
-                    channel: "cbt_monitoring_channel",
-                    message: { type: "GLOBAL_PAUSE_SIGNAL", isPaused: isGlobalPaused }
-                });
-            }
+            btn.className = isGlobalPaused ? "bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm font-semibold transition" : "bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-lg text-sm font-semibold transition";
+            btn.textContent = isGlobalPaused ? "Lanjutkan Ujian" : "Jeda Ujian";
+            if (pubnub) pubnub.publish({ channel: "cbt_monitoring_channel", message: { type: "GLOBAL_PAUSE_SIGNAL", isPaused: isGlobalPaused } });
         }
 
-        function resetViolationLogs() {
-            if (confirm("Yakin ingin menghapus seluruh log pelanggaran siswa di dashboard?")) {
-                studentLogs = {};
-                updateStats();
-                renderTable();
-            }
+        function resetViolationLogs() { 
+            if (confirm("Reset seluruh log dan data ruangan?")) { 
+                studentLogs = {}; 
+                studentRoomMap = {};
+                localStorage.removeItem('cbt_student_logs');
+                localStorage.removeItem('cbt_room_map');
+                rebuildRoomDropdown();
+                updateStats(); 
+                renderTable(); 
+            } 
         }
 
         function updateStats() {
-            const logs = Object.values(studentLogs);
-            const totalEl = document.getElementById('statTotalViolations');
-            const lockedEl = document.getElementById('statLockedStudents');
-            const forceEl = document.getElementById('statForceSubmitted');
-
-            if (totalEl) totalEl.textContent = logs.reduce((acc, curr) => acc + curr.count, 0);
-            if (lockedEl) lockedEl.textContent = logs.filter(i => i.status === "LOCKED").length;
-            if (forceEl) forceEl.textContent = logs.filter(i => i.status === "FORCE_SUBMITTED").length;
+            document.getElementById('statTotalViolations').textContent = Object.values(studentLogs).reduce((acc, curr) => acc + curr.count, 0);
+            document.getElementById('statLockedStudents').textContent = Object.values(studentLogs).filter(i => i.status === "LOCKED").length;
+            document.getElementById('statForceSubmitted').textContent = Object.values(studentLogs).filter(i => i.status === "FORCE_SUBMITTED").length;
         }
 
         function importExcelRuangan(event) {
             const file = event.target.files[0];
             if (!file) return;
-
             const reader = new FileReader();
             reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, { type: 'array' });
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
-
-                if (jsonData.length <= 1) {
-                    alert("File Excel kosong atau hanya berisi header!");
-                    return;
-                }
-
+                const workbook = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+                const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], { header: 1 });
                 const rooms = new Set();
-                let successCount = 0;
-
+                let count = 0;
                 for (let i = 1; i < jsonData.length; i++) {
                     const row = jsonData[i];
-                    if (!row || row.length < 2) continue;
-
-                    const name = row[0] ? row[0].toString().trim() : '';
-                    const room = row[1] ? row[1].toString().trim() : '';
-
-                    if (name && room) {
-                        studentRoomMap[name.toLowerCase()] = room;
-                        rooms.add(room);
-                        successCount++;
+                    if (row && row[0] && row[1]) {
+                        const sNameKey = row[0].toString().trim().toLowerCase();
+                        const sRoomName = row[1].toString().trim();
+                        studentRoomMap[sNameKey] = sRoomName;
+                        rooms.add(sRoomName);
+                        
+                        // Update juga room pada log yang sudah ada jika namanya cocok
+                        Object.keys(studentLogs).forEach(k => {
+                            if (k.toLowerCase() === sNameKey) {
+                                studentLogs[k].room = sRoomName;
+                            }
+                        });
+                        count++;
                     }
                 }
-
-                const selectEl = document.getElementById('roomFilter');
-                if (selectEl) {
-                    selectEl.innerHTML = `<option value="ALL">Semua Ruangan</option>`;
-                    rooms.forEach(r => {
-                        selectEl.innerHTML += `<option value="${r}">${r}</option>`;
-                    });
-                }
-
-                alert(`Berhasil mengimpor ${successCount} data siswa dan ${rooms.size} ruangan!`);
+                saveData();
+                rebuildRoomDropdown();
+                updateStats();
+                renderTable();
+                alert(`Berhasil impor ${count} siswa & ${rooms.size} ruangan! Data tersimpan permanen.`);
             };
             reader.readAsArrayBuffer(file);
         }
 
         function exportToExcel() {
-            const dataToExport = Object.values(studentLogs).map((item, idx) => ({
-                "No": idx + 1,
-                "Nama Siswa": item.name,
-                "Ruangan": item.room,
-                "Pelanggaran Terakhir": item.reason,
-                "Jumlah Pelanggaran": item.count,
-                "Waktu Terakhir": item.time,
-                "Status Akhir": item.status
-            }));
-
-            if (dataToExport.length === 0) {
-                alert("Belum ada data untuk diexport!");
-                return;
-            }
-
-            const ws = XLSX.utils.json_to_sheet(dataToExport);
+            const data = Object.values(studentLogs).map((i, idx) => ({ "No": idx + 1, "Nama Siswa": i.name, "Ruangan": i.room, "Pelanggaran": i.reason, "Jumlah": i.count, "Waktu": i.time, "Status": i.status }));
+            if (!data.length) { alert("Tidak ada data!"); return; }
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Log Pelanggaran");
-            XLSX.writeFile(wb, `Log_Pelanggaran_CBT_${new Date().toISOString().slice(0,10)}.xlsx`);
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), "Log");
+            XLSX.writeFile(wb, "Log_Pelanggaran_CBT.xlsx");
         }
     </script>
 </body>
