@@ -128,8 +128,8 @@
     pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
 
     // State Management
-    let studentDataMap = {}; // Menampung data siswa: { studentName: { room, count, lastReason, lastTime, isLocked, isSubmitted } }
-    let roomMappingMap = {}; // Menampung mapping Excel: { studentName: roomName }
+    let studentDataMap = {}; 
+    let roomMappingMap = {}; 
     let isGlobalPaused = false;
     let totalViolationLogs = [];
 
@@ -171,7 +171,6 @@
         const count = data.count;
         const time = data.timestamp;
 
-        // Cari Ruangan jika ada mapping dari file Excel
         const room = findStudentRoom(name);
 
         if (!studentDataMap[name]) {
@@ -192,7 +191,6 @@
             if (room !== "Umum") studentDataMap[name].room = room;
         }
 
-        // Catat ke Log Export
         totalViolationLogs.push({ Nama: name, Ruangan: room, Pelanggaran: reason, Jumlah: count, Waktu: time });
 
         renderTable();
@@ -267,7 +265,6 @@
             cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
-                // 1. Kirim Sinyal Ke Moodle Siswa via PubNub
                 pubnub.publish({
                     channel: "cbt_monitoring_channel",
                     message: {
@@ -285,7 +282,6 @@
                             showConfirmButton: false
                         });
 
-                        // 2. Update Status Siswa di Data & Tabel Dashboard
                         if (studentDataMap[studentName]) {
                             studentDataMap[studentName].isSubmitted = true;
                             studentDataMap[studentName].isLocked = false;
