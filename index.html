@@ -3,380 +3,506 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Monitoring CBT</title>
+    <title>Dashboard Pengawas CBT</title>
     
-    <!-- Bootstrap 5 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- FontAwesome Icons -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <!-- SweetAlert2 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
-
-    <style>
-        body { background-color: #f8fafc; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
-        .card { border: none; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.06); }
-        .totp-box { background: #0f172a; color: #38bdf8; font-family: monospace; font-size: 2.2rem; font-weight: bold; letter-spacing: 4px; border-radius: 8px; padding: 10px; text-align: center; }
-        .table-responsive { max-height: 550px; overflow-y: auto; }
-        .btn-pause-active { background-color: #dc2626 !important; color: white !important; border-color: #dc2626 !important; }
-    </style>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SweetAlert2 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <!-- SheetJS (Excel Parser) CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- PubNub SDK -->
+    <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
 </head>
-<body class="p-4">
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen">
 
-<div class="container-fluid">
-    <!-- HEADER & CONTROL -->
-    <div class="row mb-4 align-items-center">
-        <div class="col-md-5">
-            <h2 class="fw-bold text-dark m-0"><i class="fa-solid fa-shield-halved text-primary me-2"></i>Dashboard Pengawas CBT</h2>
-            <p class="text-muted m-0">Monitoring Real-Time & Control Ujian Siswa</p>
-        </div>
-        <div class="col-md-7 text-end">
-            <button id="btn-global-pause" class="btn btn-warning me-2 fw-bold" onclick="toggleGlobalPause()">
-                <i class="fa-solid fa-pause me-1"></i> Jeda Ujian (Global Pause)
-            </button>
-            <button class="btn btn-success me-2 fw-semibold" onclick="exportToExcel()">
-                <i class="fa-solid fa-file-excel me-1"></i> Export Log Excel
-            </button>
-            <input type="file" id="excel-file-input" accept=".xlsx, .xls" style="display: none;" onchange="handleRoomExcel(this)">
-            <button class="btn btn-outline-primary fw-semibold" onclick="document.getElementById('excel-file-input').click()">
-                <i class="fa-solid fa-upload me-1"></i> Import Ruangan
-            </button>
-        </div>
-    </div>
-
-    <div class="row mb-4">
-        <!-- TOTP CARD -->
-        <div class="col-md-4">
-            <div class="card p-3 h-100">
-                <h6 class="fw-bold text-secondary mb-2"><i class="fa-solid fa-key me-2"></i>Token TOTP Pembuka Kunci (180s)</h6>
-                <div class="totp-box mb-2" id="totp-display">------</div>
-                <div class="progress" style="height: 6px;">
-                    <div id="totp-progress" class="progress-bar bg-info" role="progressbar" style="width: 100%;"></div>
+    <!-- HEADER / NAVBAR -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-blue-600 p-2.5 rounded-xl shadow-lg">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
                 </div>
-                <small class="text-muted mt-2 text-center" id="totp-timer-text">Memperbarui dalam 180 detik...</small>
-            </div>
-        </div>
-
-        <!-- STATISTIK RINGKASAN -->
-        <div class="col-md-8">
-            <div class="card p-3 h-100">
-                <h6 class="fw-bold text-secondary mb-3"><i class="fa-solid fa-chart-pie me-2"></i>Ringkasan Aktivitas</h6>
-                <div class="row text-center">
-                    <div class="col-4">
-                        <h3 class="fw-bold text-danger" id="stat-total-violations">0</h3>
-                        <small class="text-muted">Total Pelanggaran</small>
-                    </div>
-                    <div class="col-4">
-                        <h3 class="fw-bold text-warning" id="stat-active-locked">0</h3>
-                        <small class="text-muted">Siswa Terkunci</small>
-                    </div>
-                    <div class="col-4">
-                        <h3 class="fw-bold text-success" id="stat-forced-submitted">0</h3>
-                        <small class="text-muted">Force Submitted</small>
-                    </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-wide">Dashboard Pengawas CBT</h1>
+                    <p class="text-xs text-slate-400">Monitoring Real-Time & Control Ujian Siswa</p>
                 </div>
             </div>
-        </div>
-    </div>
 
-    <!-- TABEL MONITORING SISWA -->
-    <div class="card p-3">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="fw-bold m-0"><i class="fa-solid fa-list-check me-2"></i>Log Pelanggaran & Status Siswa</h5>
-            <div class="d-flex gap-2">
-                <input type="text" id="search-student" class="form-control form-control-sm" style="width: 250px;" placeholder="Cari nama siswa..." onkeyup="filterStudentTable()">
-                <button class="btn btn-sm btn-outline-danger" onclick="clearDashboardData()"><i class="fa-solid fa-trash me-1"></i> Clear Log</button>
+            <!-- ACTION BUTTONS -->
+            <div class="flex flex-wrap items-center gap-3">
+                <button id="btn-pause" onclick="toggleGlobalPause()" class="bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2 rounded-lg text-sm flex items-center gap-2 shadow-sm transition">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                    <span id="txt-pause">Jeda Ujian (Global Pause)</span>
+                </button>
+                <button onclick="exportToExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-4 py-2 rounded-lg text-sm flex items-center gap-2 shadow-sm transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                    Export Log Excel
+                </button>
+                <label class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg text-sm flex items-center gap-2 shadow-sm transition cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    Import Ruangan
+                    <input type="file" accept=".xlsx, .xls" class="hidden" onchange="handleRoomExcel(this)">
+                </label>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+        <!-- TOP STATS & TOTP CARD -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            <!-- TOTP TOKEN CARD -->
+            <div class="bg-slate-900 text-white rounded-2xl p-6 shadow-md border border-slate-800 flex flex-col justify-between relative overflow-hidden">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 0121 9z"/></svg>
+                        Token TOTP Pembuka Kunci (180s)
+                    </span>
+                </div>
+                <div class="text-center py-2">
+                    <div id="totp-code" class="text-4xl font-extrabold tracking-widest text-sky-400 font-mono">000000</div>
+                </div>
+                <div>
+                    <div class="w-full bg-slate-800 rounded-full h-1.5 mb-2 overflow-hidden">
+                        <div id="totp-progress" class="bg-sky-500 h-1.5 rounded-full transition-all duration-1000" style="width: 100%"></div>
+                    </div>
+                    <p id="totp-timer-text" class="text-xs text-center text-slate-400">Memperbarui dalam 180 detik...</p>
+                </div>
+            </div>
+
+            <!-- SUMMARY STATS -->
+            <div class="md:col-span-2 bg-white rounded-2xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-sm font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                        <svg class="w-4 h-4 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                        Ringkasan Aktivitas
+                    </h2>
+                </div>
+                <div class="grid grid-cols-3 gap-4 text-center">
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+                        <div id="stat-total" class="text-3xl font-extrabold text-slate-800">0</div>
+                        <div class="text-xs font-medium text-slate-500 mt-1">Total Pelanggaran</div>
+                    </div>
+                    <div class="bg-amber-50 p-4 rounded-xl border border-amber-100">
+                        <div id="stat-locked" class="text-3xl font-extrabold text-amber-600">0</div>
+                        <div class="text-xs font-medium text-amber-700 mt-1">Siswa Terkunci</div>
+                    </div>
+                    <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                        <div id="stat-forced" class="text-3xl font-extrabold text-emerald-600">0</div>
+                        <div class="text-xs font-medium text-emerald-700 mt-1">Force Submitted</div>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="table-responsive">
-            <table class="table table-hover align-middle" id="monitoringTable">
-                <thead class="table-dark">
-                    <tr>
-                        <th style="width: 40px;">#</th>
-                        <th>Nama Siswa</th>
-                        <th>Ruangan</th>
-                        <th>Jenis Pelanggaran Terakhir</th>
-                        <th style="width: 70px;" class="text-center">Jml</th>
-                        <th style="width: 110px;" class="text-center">Waktu</th>
-                        <th style="width: 130px;" class="text-center">Status</th>
-                        <th style="width: 220px;" class="text-center">Aksi Pengawas</th>
-                    </tr>
-                </thead>
-                <tbody id="studentTableBody">
-                    <tr id="no-data-row">
-                        <td colspan="8" class="text-center text-muted py-4">Belum ada aktivitas pelanggaran terdeteksi.</td>
-                    </tr>
-                </tbody>
-            </table>
+        <!-- MONITORING TABLE CARD -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div class="p-6 border-b border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                        Log Pelanggaran & Status Siswa
+                    </h2>
+                </div>
+                <div class="w-full md:w-72">
+                    <input type="text" id="search-input" oninput="renderTable()" placeholder="Cari nama siswa..." class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition">
+                </div>
+            </div>
+
+            <!-- TABLE -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="bg-slate-900 text-white text-xs font-semibold tracking-wider uppercase">
+                            <th class="py-3 px-4 w-12 text-center">#</th>
+                            <th class="py-3 px-4">Nama Siswa</th>
+                            <th class="py-3 px-4">Ruangan</th>
+                            <th class="py-3 px-4">Jenis Pelanggaran</th>
+                            <th class="py-3 px-4 text-center">Jumlah</th>
+                            <th class="py-3 px-4">Waktu</th>
+                            <th class="py-3 px-4 text-center">Status</th>
+                            <th class="py-3 px-4 text-center">Aksi Pengawas</th>
+                        </tr>
+                    </thead>
+                    <tbody id="monitoring-tbody" class="divide-y divide-slate-100 text-sm">
+                        <!-- Rows rendered via JS -->
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
-</div>
+    </main>
 
-<!-- LIBRARIES JS -->
-<script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
-<script>
-    const pubnub = new PubNub({
-        publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87",
-        subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659",
-        uuid: "supervisor_dashboard_2026"
-    });
-
-    pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
-
-    let studentDataMap = {}; 
-    let roomMappingMap = {}; 
-    let isGlobalPaused = false;
-    let totalViolationLogs = [];
-
-    pubnub.addListener({
-        message: function(msg) {
-            const data = msg.message;
-            if (!data) return;
-
-            if (data.type === "VIOLATION") {
-                handleIncomingViolation(data);
-            }
-        }
-    });
-
-    function handleIncomingViolation(data) {
-        const name = data.studentName;
-        const reason = data.reason;
-        const count = data.count;
-        const time = data.timestamp;
-        const room = findStudentRoom(name);
-
-        if (!studentDataMap[name]) {
-            studentDataMap[name] = {
-                name: name,
-                room: room,
-                count: count,
-                lastReason: reason,
-                lastTime: time,
-                isLocked: true,
-                isSubmitted: false
-            };
-        } else {
-            studentDataMap[name].count = count;
-            studentDataMap[name].lastReason = reason;
-            studentDataMap[name].lastTime = time;
-            studentDataMap[name].isLocked = true;
-            if (room !== "Umum") studentDataMap[name].room = room;
-        }
-
-        totalViolationLogs.push({ Nama: name, Ruangan: room, Pelanggaran: reason, Jumlah: count, Waktu: time });
-
-        renderTable();
-        updateStatistics();
-    }
-
-    function renderTable() {
-        const tbody = document.getElementById('studentTableBody');
-        const students = Object.values(studentDataMap);
-
-        if (students.length === 0) {
-            tbody.innerHTML = `<tr id="no-data-row"><td colspan="8" class="text-center text-muted py-4">Belum ada aktivitas pelanggaran terdeteksi.</td></tr>`;
-            return;
-        }
-
-        let html = '';
-        let index = 1;
-
-        students.forEach(s => {
-            let statusBadge = s.isSubmitted 
-                ? `<span class="badge bg-success">FINISHED</span>`
-                : (s.isLocked 
-                    ? `<span class="badge bg-danger">TERKUNCI</span>` 
-                    : `<span class="badge bg-primary">AKTIF</span>`);
-
-            let actionButtons = '';
-            if (s.isSubmitted) {
-                actionButtons = `<span class="text-muted small fs-italic">Selesai</span>`;
-            } else {
-                actionButtons = `
-                    <button class="btn btn-sm btn-outline-success me-1" onclick="remoteUnlockStudent('${s.name}')" title="Buka Kunci Layar Remote">
-                        <i class="fa-solid fa-lock-open"></i> Unlock
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="forceSubmitStudent('${s.name}')" title="Submit Paksa">
-                        <i class="fa-solid fa-paper-plane"></i> Force Submit
-                    </button>
-                `;
-            }
-
-            html += `
-                <tr>
-                    <td>${index++}</td>
-                    <td class="fw-bold student-name">${s.name}</td>
-                    <td><span class="badge bg-secondary">${s.room}</span></td>
-                    <td class="text-danger small fw-semibold">${s.lastReason}</td>
-                    <td class="text-center fw-bold">${s.count}</td>
-                    <td class="text-center small text-muted">${s.lastTime}</td>
-                    <td class="text-center">${statusBadge}</td>
-                    <td class="text-center">${actionButtons}</td>
-                </tr>
-            `;
+    <!-- JAVASCRIPT LOGIC -->
+    <script>
+        // CONFIG & PUBNUB INIT
+        const SECRET_SALT = "CBT_SECRET_KEY_2026";
+        const pubnub = new PubNub({
+            publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87",
+            subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659",
+            uuid: "dashboard_supervisor_" + Math.random().toString(36).substring(2, 7)
         });
 
-        tbody.innerHTML = html;
-    }
+        pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
 
-    function updateStatistics() {
-        const students = Object.values(studentDataMap);
-        document.getElementById('stat-total-violations').innerText = totalViolationLogs.length;
-        document.getElementById('stat-active-locked').innerText = students.filter(s => s.isLocked && !s.isSubmitted).length;
-        document.getElementById('stat-forced-submitted').innerText = students.filter(s => s.isSubmitted).length;
-    }
+        // GLOBAL STATE
+        let studentDataMap = {}; // { cleanKey: { rawName, room, reason, count, timestamp, status } }
+        let roomMappingMap = {};  // { cleanKey: roomName }
+        let isGlobalPaused = false;
+        let totalViolationsCount = 0;
 
-    // REMOTE UNLOCK DARI DASHBOARD
-    function remoteUnlockStudent(studentName) {
-        pubnub.publish({
-            channel: "cbt_monitoring_channel",
-            message: {
-                type: "REMOTE_UNLOCK_COMMAND",
-                targetStudent: studentName
-            }
-        }, function(status, response) {
-            if (!status.error) {
-                if (studentDataMap[studentName]) {
-                    studentDataMap[studentName].isLocked = false;
+        // SANITIZE & CLEAN STRING FUNCTION
+        function cleanString(str) {
+            return String(str || '')
+                .replace(/You are logged in as/i, '')
+                .replace(/\u00A0/g, ' ')      // Ganti Non-breaking space dengan spasi biasa
+                .replace(/\s*-\s*$/, '')      // Hapus strip & spasi di akhir nama
+                .toLowerCase()
+                .replace(/[^a-z0-9]/g, '')    // Ambil alfanumerik saja
+                .trim();
+        }
+
+        // DISPLAY NAME CLEANER (UNTUK TAMPILAN DI TABEL)
+        function formatDisplayName(raw) {
+            if (!raw) return "Siswa CBT";
+            return String(raw)
+                .replace(/You are logged in as/i, '')
+                .replace(/\u00A0/g, ' ')
+                .replace(/\s*-\s*$/, '') // Hilangkan strip akhir agar rapi
+                .trim();
+        }
+
+        // FIND ROOM FOR STUDENT
+        function findStudentRoom(studentName) {
+            const key = cleanString(studentName);
+            if (!key) return "Umum";
+
+            // 1. Direct match
+            if (roomMappingMap[key]) return roomMappingMap[key];
+
+            // 2. Fuzzy match jika nama mengandung bagian kata yang sama
+            for (let rKey in roomMappingMap) {
+                if (rKey.length > 3 && (rKey.includes(key) || key.includes(rKey))) {
+                    return roomMappingMap[rKey];
                 }
-                renderTable();
-                updateStatistics();
-                Swal.fire({ icon: 'success', title: 'Berhasil', text: `Sinyal Buka Kunci terkirim ke ${studentName}`, timer: 1500, showConfirmButton: false });
+            }
+
+            return "Umum";
+        }
+
+        // PUBNUB LISTENER (RECEIVE VIOLATION FROM MOODLE)
+        pubnub.addListener({
+            message: function(msg) {
+                const data = msg.message;
+                if (data && data.type === "VIOLATION") {
+                    handleViolationReceived(data);
+                }
             }
         });
-    }
 
-    function forceSubmitStudent(studentName) {
-        Swal.fire({
-            title: 'Konfirmasi Submit Paksa',
-            text: `Submit paksa dan akhiri ujian siswa: "${studentName}"?`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc2626',
-            cancelButtonText: 'Batal',
-            confirmButtonText: 'Ya, Submit Paksa!'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                pubnub.publish({
-                    channel: "cbt_monitoring_channel",
-                    message: {
-                        type: "FORCE_SUBMIT_COMMAND",
-                        targetStudent: studentName
-                    }
-                }, function(status, response) {
-                    if (!status.error) {
-                        if (studentDataMap[studentName]) {
-                            studentDataMap[studentName].isSubmitted = true;
-                            studentDataMap[studentName].isLocked = false;
-                        }
-                        renderTable();
-                        updateStatistics();
-                    }
+        function handleViolationReceived(data) {
+            const rawName = data.studentName || "Siswa CBT";
+            const key = cleanString(rawName);
+
+            totalViolationsCount++;
+
+            if (!studentDataMap[key]) {
+                studentDataMap[key] = {
+                    rawName: formatDisplayName(rawName),
+                    room: findStudentRoom(rawName),
+                    reason: data.reason || "Pelanggaran Ujian",
+                    count: data.count || 1,
+                    timestamp: data.timestamp || new Date().toLocaleTimeString(),
+                    status: "TERKUNCI"
+                };
+            } else {
+                studentDataMap[key].rawName = formatDisplayName(rawName);
+                studentDataMap[key].room = findStudentRoom(rawName);
+                studentDataMap[key].reason = data.reason || studentDataMap[key].reason;
+                studentDataMap[key].count = data.count || (studentDataMap[key].count + 1);
+                studentDataMap[key].timestamp = data.timestamp || new Date().toLocaleTimeString();
+                if (studentDataMap[key].status !== "FORCE SUBMITTED") {
+                    studentDataMap[key].status = "TERKUNCI";
+                }
+            }
+
+            renderTable();
+        }
+
+        // RENDER TABLE & UPDATE STATS
+        function renderTable() {
+            const tbody = document.getElementById('monitoring-tbody');
+            const searchVal = cleanString(document.getElementById('search-input').value);
+            
+            tbody.innerHTML = "";
+
+            let lockedCount = 0;
+            let forcedCount = 0;
+            let list = Object.values(studentDataMap);
+
+            if (list.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="text-center py-8 text-slate-400">
+                            Belum ada log pelanggaran terdeteksi.
+                        </td>
+                    </tr>
+                `;
+            } else {
+                let idx = 1;
+                list.forEach(student => {
+                    if (student.status === "TERKUNCI") lockedCount++;
+                    if (student.status === "FORCE SUBMITTED") forcedCount++;
+
+                    // Search Filter
+                    if (searchVal && !cleanString(student.rawName).includes(searchVal)) return;
+
+                    const statusBadge = student.status === "TERKUNCI"
+                        ? `<span class="bg-red-100 text-red-700 font-bold px-2.5 py-1 rounded-full text-xs">TERKUNCI</span>`
+                        : (student.status === "FORCE SUBMITTED" 
+                            ? `<span class="bg-emerald-100 text-emerald-700 font-bold px-2.5 py-1 rounded-full text-xs">SUBMITTED</span>`
+                            : `<span class="bg-blue-100 text-blue-700 font-bold px-2.5 py-1 rounded-full text-xs">AKTIF</span>`);
+
+                    const row = document.createElement('tr');
+                    row.className = "hover:bg-slate-50 transition border-b border-slate-100";
+                    row.innerHTML = `
+                        <td class="py-3 px-4 text-center text-slate-400 font-medium">${idx++}</td>
+                        <td class="py-3 px-4 font-semibold text-slate-800">${student.rawName}</td>
+                        <td class="py-3 px-4"><span class="bg-slate-200 text-slate-700 text-xs px-2 py-0.5 rounded font-mono font-bold">${student.room}</span></td>
+                        <td class="py-3 px-4 text-red-600 font-medium">${student.reason}</td>
+                        <td class="py-3 px-4 text-center font-bold text-slate-700">${student.count}x</td>
+                        <td class="py-3 px-4 text-slate-500 text-xs">${student.timestamp}</td>
+                        <td class="py-3 px-4 text-center">${statusBadge}</td>
+                        <td class="py-3 px-4 text-center space-x-1">
+                            <button onclick="remoteUnlockStudent('${student.rawName}')" class="bg-blue-50 text-blue-600 hover:bg-blue-100 font-semibold px-2.5 py-1 rounded text-xs transition border border-blue-200">
+                                Buka Kunci
+                            </button>
+                            <button onclick="remoteForceSubmit('${student.rawName}')" class="bg-red-50 text-red-600 hover:bg-red-100 font-semibold px-2.5 py-1 rounded text-xs transition border border-red-200">
+                                Force Submit
+                            </button>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
                 });
             }
-        });
-    }
 
-    function toggleGlobalPause() {
-        isGlobalPaused = !isGlobalPaused;
-        pubnub.publish({
-            channel: "cbt_monitoring_channel",
-            message: { type: "GLOBAL_PAUSE_SIGNAL", isPaused: isGlobalPaused }
-        }, function() {
-            updatePauseButtonUI(isGlobalPaused);
-        });
-    }
-
-    function updatePauseButtonUI(paused) {
-        const btn = document.getElementById('btn-global-pause');
-        if (paused) {
-            btn.classList.add('btn-pause-active');
-            btn.innerHTML = `<i class="fa-solid fa-play me-1"></i> Lanjutkan Ujian (Unpause)`;
-        } else {
-            btn.classList.remove('btn-pause-active');
-            btn.innerHTML = `<i class="fa-solid fa-pause me-1"></i> Jeda Ujian (Global Pause)`;
+            document.getElementById('stat-total').innerText = totalViolationsCount;
+            document.getElementById('stat-locked').innerText = lockedCount;
+            document.getElementById('stat-forced').innerText = forcedCount;
         }
-    }
 
-    // TOTP GENERATOR
-    const SECRET_SALT = "CBT_SECRET_KEY_2026";
-    function generateTOTP() {
-        const epochSec = Math.floor(Date.now() / 1000);
-        const timeStep = Math.floor(epochSec / 180);
-        let hash = 0;
-        const str = SECRET_SALT + timeStep;
-        for (let i = 0; i < str.length; i++) {
-            hash = ((hash << 5) - hash) + str.charCodeAt(i);
-            hash |= 0;
-        }
-        return (Math.abs(hash % 900000) + 100000).toString();
-    }
-
-    function updateTOTPTimer() {
-        const epochSec = Math.floor(Date.now() / 1000);
-        const remainingSec = 180 - (epochSec % 180);
-        document.getElementById('totp-display').innerText = generateTOTP();
-        document.getElementById('totp-timer-text').innerText = `Memperbarui dalam ${remainingSec} detik...`;
-        document.getElementById('totp-progress').style.width = ((remainingSec / 180) * 100) + "%";
-    }
-    setInterval(updateTOTPTimer, 1000);
-    updateTOTPTimer();
-
-    // IMPORT EXCEL & EXPORT
-    function handleRoomExcel(input) {
-        const file = input.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const data = new Uint8Array(e.target.result);
-            const workbook = XLSX.read(data, { type: 'array' });
-            const sheet = workbook.Sheets[workbook.SheetNames[0]];
-            const json = XLSX.utils.sheet_to_json(sheet);
-            roomMappingMap = {};
-            json.forEach(row => {
-                const sName = row['Nama'] || row['Nama Siswa'] || row['Nama Peserta'];
-                const rName = row['Ruangan'] || row['Ruang'] || row['Kelas'];
-                if (sName && rName) roomMappingMap[String(sName).trim().toLowerCase()] = String(rName).trim();
+        // REMOTE CONTROL ACTIONS
+        function remoteUnlockStudent(studentName) {
+            pubnub.publish({
+                channel: "cbt_monitoring_channel",
+                message: {
+                    type: "REMOTE_UNLOCK_COMMAND",
+                    targetStudent: studentName
+                }
             });
-            Swal.fire({ icon: 'success', title: 'Berhasil', text: `${Object.keys(roomMappingMap).length} Data Ruangan Di-import.` });
-        };
-        reader.readAsArrayBuffer(file);
-    }
 
-    function findStudentRoom(studentName) {
-        const clean = String(studentName || '').trim().toLowerCase();
-        for (let key in roomMappingMap) {
-            if (clean.includes(key) || key.includes(clean)) return roomMappingMap[key];
+            const key = cleanString(studentName);
+            if (studentDataMap[key] && studentDataMap[key].status !== "FORCE SUBMITTED") {
+                studentDataMap[key].status = "AKTIF";
+            }
+            renderTable();
+
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                icon: 'success',
+                title: `Sinyal Pembuka Kunci dikirim ke ${studentName}`,
+                showConfirmButton: false,
+                timer: 2000
+            });
         }
-        return "Umum";
-    }
 
-    function exportToExcel() {
-        if (totalViolationLogs.length === 0) return Swal.fire({ icon: 'info', title: 'Data Kosong' });
-        const ws = XLSX.utils.json_to_sheet(totalViolationLogs);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, "Log Pelanggaran");
-        XLSX.writeFile(wb, `Log_Pelanggaran_CBT_${new Date().toISOString().slice(0,10)}.xlsx`);
-    }
+        function remoteForceSubmit(studentName) {
+            Swal.fire({
+                title: 'Hentikan Ujian Siswa?',
+                text: `Siswa ${studentName} akan dipaksa mengakhiri dan mengirimkan jawaban ujiannya!`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Force Submit!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    pubnub.publish({
+                        channel: "cbt_monitoring_channel",
+                        message: {
+                            type: "FORCE_SUBMIT_COMMAND",
+                            targetStudent: studentName
+                        }
+                    });
 
-    function clearDashboardData() {
-        studentDataMap = {};
-        totalViolationLogs = [];
+                    const key = cleanString(studentName);
+                    if (studentDataMap[key]) {
+                        studentDataMap[key].status = "FORCE SUBMITTED";
+                    }
+                    renderTable();
+                }
+            });
+        }
+
+        function toggleGlobalPause() {
+            isGlobalPaused = !isGlobalPaused;
+            
+            pubnub.publish({
+                channel: "cbt_monitoring_channel",
+                message: {
+                    type: "GLOBAL_PAUSE_SIGNAL",
+                    isPaused: isGlobalPaused
+                }
+            });
+
+            const btn = document.getElementById('btn-pause');
+            const txt = document.getElementById('txt-pause');
+
+            if (isGlobalPaused) {
+                btn.className = "bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-lg text-sm flex items-center gap-2 shadow-sm transition";
+                txt.innerText = "Resume Ujian (Ujian Dijeda)";
+            } else {
+                btn.className = "bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold px-4 py-2 rounded-lg text-sm flex items-center gap-2 shadow-sm transition";
+                txt.innerText = "Jeda Ujian (Global Pause)";
+            }
+        }
+
+        // EXCEL ROOM IMPORT HANDLER
+        function handleRoomExcel(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    const firstSheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[firstSheetName];
+                    const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+                    roomMappingMap = {};
+                    let countLoaded = 0;
+
+                    json.forEach(row => {
+                        let sName = "";
+                        let rName = "";
+
+                        // Deteksi nama kolom secara fleksibel
+                        for (let key in row) {
+                            const cleanKey = cleanString(key);
+                            if (["namasiswa", "nama", "namapeserta", "siswa", "student"].includes(cleanKey)) {
+                                sName = String(row[key]).trim();
+                            }
+                            if (["ruangujian", "ruangan", "ruang", "kelas", "lab", "room"].includes(cleanKey)) {
+                                rName = String(row[key]).trim();
+                            }
+                        }
+
+                        if (sName && rName) {
+                            const keyName = cleanString(sName);
+                            if (keyName) {
+                                roomMappingMap[keyName] = rName;
+                                countLoaded++;
+                            }
+                        }
+                    });
+
+                    if (countLoaded > 0) {
+                        // Re-update semua data siswa yang sudah ada di tabel monitoring
+                        Object.keys(studentDataMap).forEach(key => {
+                            const newRoom = findStudentRoom(studentDataMap[key].rawName);
+                            if (newRoom !== "Umum") {
+                                studentDataMap[key].room = newRoom;
+                            }
+                        });
+
+                        renderTable();
+
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Import Berhasil!',
+                            text: `Berhasil memuat ${countLoaded} data ruangan siswa.`,
+                            confirmButtonColor: '#0284c7'
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Data Tidak Ditemukan',
+                            html: `Pastikan header kolom di Excel menggunakan nama:<br><b>Nama Siswa</b> & <b>Ruang Ujian</b>`,
+                            confirmButtonColor: '#eab308'
+                        });
+                    }
+
+                } catch (error) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Gagal Membaca File',
+                        text: 'Pastikan file berformat .xlsx atau .xls yang valid.',
+                        confirmButtonColor: '#dc2626'
+                    });
+                }
+                
+                input.value = ''; // Reset input file
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        // EXPORT LOG TO EXCEL
+        function exportToExcel() {
+            const list = Object.values(studentDataMap);
+            if (list.length === 0) {
+                Swal.fire({ icon: 'info', title: 'Log Masih Kosong', text: 'Belum ada data pelanggaran untuk di-export.' });
+                return;
+            }
+
+            const exportData = list.map((item, index) => ({
+                "No": index + 1,
+                "Nama Siswa": item.rawName,
+                "Ruangan": item.room,
+                "Jenis Pelanggaran": item.reason,
+                "Jumlah Pelanggaran": item.count,
+                "Waktu": item.timestamp,
+                "Status": item.status
+            }));
+
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Log Pelanggaran");
+            XLSX.writeFile(wb, `Log_Pelanggaran_CBT_${new Date().toISOString().slice(0,10)}.xlsx`);
+        }
+
+        // GENERATE TOTP TOKEN (180 SECONDS CYCLE)
+        function generateTOTP() {
+            const epochSec = Math.floor(Date.now() / 1000);
+            const currentStep = Math.floor(epochSec / 180);
+            const secondsRemaining = 180 - (epochSec % 180);
+
+            let hash = 0;
+            const str = SECRET_SALT + currentStep;
+            for (let i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash |= 0;
+            }
+            const token = (Math.abs(hash % 900000) + 100000).toString();
+
+            document.getElementById('totp-code').innerText = token;
+            document.getElementById('totp-timer-text').innerText = `Memperbarui dalam ${secondsRemaining} detik...`;
+            document.getElementById('totp-progress').style.width = `${(secondsRemaining / 180) * 100}%`;
+        }
+
+        // INIT INTERVAL
+        setInterval(generateTOTP, 1000);
+        generateTOTP();
         renderTable();
-        updateStatistics();
-    }
-
-    function filterStudentTable() {
-        const query = document.getElementById('search-student').value.toLowerCase();
-        document.querySelectorAll('#studentTableBody tr').forEach(row => {
-            const nameCell = row.querySelector('.student-name');
-            if (nameCell) row.style.display = nameCell.innerText.toLowerCase().includes(query) ? '' : 'none';
-        });
-    }
-</script>
+    </script>
 </body>
 </html>
