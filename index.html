@@ -11,7 +11,7 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <!-- PubNub SDK -->
     <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.2.0.min.js"></script>
-    <!-- SheetJS / XLSX (PENTING: Membaca & Memproses File Excel) -->
+    <!-- SheetJS / XLSX (Membaca & Memproses File Excel) -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
     <style>
@@ -113,7 +113,6 @@
                         </tr>
                     </thead>
                     <tbody id="table-log-body" class="divide-y divide-slate-200">
-                        <!-- Data log akan diisi oleh JavaScript -->
                         <tr id="row-empty">
                             <td colspan="5" class="py-8 text-center text-slate-400 italic">Belum ada aktivitas/pelanggaran terdeteksi.</td>
                         </tr>
@@ -148,15 +147,11 @@
             renderTableLogs();
             startTOTPGenerator();
 
-            // Trigger file input dialog
             document.getElementById('btn-upload-excel').addEventListener('click', () => {
                 document.getElementById('excelFileInput').click();
             });
 
-            // Toggle Pause Button
             document.getElementById('btn-toggle-pause').addEventListener('click', toggleGlobalPause);
-
-            // Filter Room Change
             document.getElementById('filter-ruangan').addEventListener('change', renderTableLogs);
         });
 
@@ -183,11 +178,10 @@
                 count: data.count || 1
             };
 
-            logsData.unshift(newEntry); // Tambah ke atas
+            logsData.unshift(newEntry);
             localStorage.setItem('cbt_logs_data', JSON.stringify(logsData));
             renderTableLogs();
 
-            // Notifikasi suara / toast singkat
             const Toast = Swal.mixin({
                 toast: true, position: 'top-end', showConfirmButton: false, timer: 3000
             });
@@ -195,7 +189,7 @@
         }
 
         // ==========================================
-        // 3. LOGIKA UPLOAD & PARSING EXCEL (SHEETJS)
+        // 3. LOGIKA UPLOAD EXCEL & DATABASE RUANGAN
         // ==========================================
         document.getElementById('excelFileInput').addEventListener('change', function(e) {
             const file = e.target.files[0];
@@ -223,7 +217,6 @@
                     let detectedRooms = new Set();
 
                     jsonData.forEach(row => {
-                        // Fleksibel mencari nama header kolom
                         let nameKey = Object.keys(row).find(k => k.trim().toLowerCase().includes('nama'));
                         let roomKey = Object.keys(row).find(k => k.trim().toLowerCase().includes('ruang'));
 
@@ -242,11 +235,10 @@
                         throw new Error("Gagal menemukan kolom 'Nama Siswa' atau 'Ruang Ujian'.");
                     }
 
-                    // Simpan ke LocalStorage
                     localStorage.setItem('cbt_room_database', JSON.stringify(roomMapping));
                     localStorage.setItem('cbt_detected_rooms', JSON.stringify(Array.from(detectedRooms)));
 
-                    // Update ulang log yang ada dengan data ruang baru
+                    // Update log yang ada dengan ruang baru
                     logsData.forEach(log => {
                         log.room = getStudentRoom(log.studentName);
                     });
@@ -272,10 +264,9 @@
             };
 
             reader.readAsArrayBuffer(file);
-            this.value = ''; // Reset input file
+            this.value = '';
         });
 
-        // Deteksi Ruangan dari LocalStorage
         function getStudentRoom(studentName) {
             const dbRaw = localStorage.getItem('cbt_room_database');
             if (!dbRaw) return "Ruang Umum";
@@ -284,10 +275,8 @@
                 const roomDb = JSON.parse(dbRaw);
                 const cleanName = String(studentName).trim().toLowerCase();
 
-                // 1. Exact Match
                 if (roomDb[cleanName]) return roomDb[cleanName];
 
-                // 2. Partial/Sub-string Match (Toleransi strip/spasi)
                 for (let keyInDb in roomDb) {
                     if (cleanName.includes(keyInDb) || keyInDb.includes(cleanName)) {
                         return roomDb[keyInDb];
@@ -310,7 +299,6 @@
 
                 statusEl.innerHTML = `<span class="text-emerald-600">Aktif (${Object.keys(roomDb).length} Siswa)</span>`;
 
-                // Re-populate dropdown
                 selectEl.innerHTML = '<option value="ALL">Semua Ruangan</option>';
                 rooms.sort().forEach(r => {
                     const opt = document.createElement('option');
@@ -324,7 +312,7 @@
         }
 
         // ==========================================
-        // 4. RENDER TABEL LOGS & STATISTIK
+        // 4. RENDER TABEL LOGS, STATISTIK & FORCE SUBMIT
         // ==========================================
         function renderTableLogs() {
             const tbody = document.getElementById('table-log-body');
@@ -341,7 +329,6 @@
                 filterTextEl.textContent = `*Menampilkan seluruh ruangan`;
             }
 
-            // Hitung Statistik
             const uniqueStudents = new Set(logsData.map(l => l.studentName.toLowerCase()));
             document.getElementById('stat-total-siswa').textContent = uniqueStudents.size;
             document.getElementById('stat-total-pelanggaran').textContent = logsData.length;
@@ -368,12 +355,50 @@
                     </td>
                     <td class="py-3 px-4 text-xs text-red-600 font-semibold">${log.reason}</td>
                     <td class="py-3 px-4 text-center">
-                        <button onclick="deleteSingleLog(${log.id})" class="text-xs bg-slate-100 hover:bg-red-100 text-slate-600 hover:text-red-700 px-2.5 py-1 rounded border border-slate-200">
-                            Hapus Log
-                        </button>
+                        <div class="flex items-center justify-center gap-1.5">
+                            <button onclick="sendForceSubmitCommand('${log.studentName}')" class="text-xs bg-red-600 hover:bg-red-700 text-white font-bold px-2.5 py-1 rounded transition shadow-sm" title="Paksa Submit Ujian Siswa Ini">
+                                🚨 Force Submit
+                            </button>
+                            <button onclick="deleteSingleLog(${log.id})" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 px-2 py-1 rounded border border-slate-200">
+                                Hapus
+                            </button>
+                        </div>
                     </td>
                 `;
                 tbody.appendChild(tr);
+            });
+        }
+
+        // FUNGSI KIRIM COMMAND FORCE SUBMIT
+        function sendForceSubmitCommand(targetStudentName) {
+            Swal.fire({
+                title: 'Konfirmasi Submit Paksa',
+                html: `Apakah Anda yakin ingin menyelesaikan ujian <b>${targetStudentName}</b> secara paksa?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#dc2626',
+                cancelButtonColor: '#64748b',
+                confirmButtonText: 'Ya, Submit Paksa!',
+                cancelButtonText: 'Batal'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    pubnub.publish({
+                        channel: "cbt_monitoring_channel",
+                        message: {
+                            type: "FORCE_SUBMIT_COMMAND",
+                            targetStudent: targetStudentName,
+                            timestamp: new Date().toLocaleTimeString()
+                        }
+                    });
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Perintah Terkirim!',
+                        text: `Sinyal submit paksa telah dikirim ke browser ${targetStudentName}.`,
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                }
             });
         }
 
@@ -431,7 +456,7 @@
         function startTOTPGenerator() {
             function updateTOTP() {
                 const epochSec = Math.floor(Date.now() / 1000);
-                const timeStep = Math.floor(epochSec / 180); // Refresh 3 menit (180s)
+                const timeStep = Math.floor(epochSec / 180);
                 const remainingSec = 180 - (epochSec % 180);
 
                 let hash = 0;
