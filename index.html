@@ -373,7 +373,7 @@
             }
         }
 
-        // EXCEL ROOM IMPORT HANDLER
+        // EXCEL ROOM IMPORT HANDLER (ULTRA FLEXIBLE)
         function handleRoomExcel(input) {
             const file = input.files[0];
             if (!file) return;
@@ -386,25 +386,47 @@
                     
                     const firstSheetName = workbook.SheetNames[0];
                     const sheet = workbook.Sheets[firstSheetName];
-                    const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+                    
+                    // Ambil data dalam bentuk Array of Arrays (Baris demi Baris)
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: "" });
+
+                    if (rows.length < 2) {
+                        Swal.fire({ icon: 'warning', title: 'File Kosong', text: 'File Excel tidak memiliki data.' });
+                        return;
+                    }
+
+                    // Cari Baris Header (Baris pertama yang tidak kosong)
+                    let headerRow = rows[0];
+                    let nameColIdx = -1;
+                    let roomColIdx = -1;
+
+                    // Cari Indeks Kolom Nama & Ruangan berdasarkan kemiripan teks
+                    headerRow.forEach((colName, index) => {
+                        const colStr = String(colName).toLowerCase().replace(/[^a-z0-9]/g, '');
+                        
+                        // Kata kunci kolom NAMA
+                        if (colStr.includes('nama') || colStr.includes('siswa') || colStr.includes('peserta') || colStr.includes('student')) {
+                            if (nameColIdx === -1) nameColIdx = index;
+                        }
+                        
+                        // Kata kunci kolom RUANGAN
+                        if (colStr.includes('ruang') || colStr.includes('room') || colStr.includes('kelas') || colStr.includes('lab') || colStr.includes('sesi')) {
+                            if (roomColIdx === -1) roomColIdx = index;
+                        }
+                    });
+
+                    // Fallback: Jika header tidak ketemu kata kuncinya, asumsi Kolom 0 = Nama, Kolom 1 = Ruangan
+                    if (nameColIdx === -1) nameColIdx = 0; // Kolom A
+                    if (roomColIdx === -1) roomColIdx = 1; // Kolom B
 
                     roomMappingMap = {};
                     let countLoaded = 0;
 
-                    json.forEach(row => {
-                        let sName = "";
-                        let rName = "";
-
-                        // Deteksi nama kolom secara fleksibel
-                        for (let key in row) {
-                            const cleanKey = cleanString(key);
-                            if (["namasiswa", "nama", "namapeserta", "siswa", "student"].includes(cleanKey)) {
-                                sName = String(row[key]).trim();
-                            }
-                            if (["ruangujian", "ruangan", "ruang", "kelas", "lab", "room"].includes(cleanKey)) {
-                                rName = String(row[key]).trim();
-                            }
-                        }
+                    // Loop membaca baris data (mulai dari baris ke-2 / setelah header)
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i];
+                        const sName = String(row[nameColIdx] || '').trim();
+                        const rName = String(row[roomColIdx] || '').trim();
 
                         if (sName && rName) {
                             const keyName = cleanString(sName);
@@ -413,10 +435,10 @@
                                 countLoaded++;
                             }
                         }
-                    });
+                    }
 
                     if (countLoaded > 0) {
-                        // Re-update semua data siswa yang sudah ada di tabel monitoring
+                        // Update otomatis ruangan di tabel jika sudah ada siswa terdaftar
                         Object.keys(studentDataMap).forEach(key => {
                             const newRoom = findStudentRoom(studentDataMap[key].rawName);
                             if (newRoom !== "Umum") {
@@ -428,15 +450,15 @@
 
                         Swal.fire({
                             icon: 'success',
-                            title: 'Import Berhasil!',
-                            text: `Berhasil memuat ${countLoaded} data ruangan siswa.`,
+                            title: 'Berhasil',
+                            text: `${countLoaded} Data Ruangan Di-import.`,
                             confirmButtonColor: '#0284c7'
                         });
                     } else {
                         Swal.fire({
                             icon: 'warning',
-                            title: 'Data Tidak Ditemukan',
-                            html: `Pastikan header kolom di Excel menggunakan nama:<br><b>Nama Siswa</b> & <b>Ruang Ujian</b>`,
+                            title: 'Gagal Membaca Data',
+                            text: 'Pastikan file Excel berisi kolom Nama dan Ruangan.',
                             confirmButtonColor: '#eab308'
                         });
                     }
@@ -445,12 +467,12 @@
                     Swal.fire({
                         icon: 'error',
                         title: 'Gagal Membaca File',
-                        text: 'Pastikan file berformat .xlsx atau .xls yang valid.',
+                        text: 'Format file tidak terbaca. Gunakan file .xlsx atau .xls',
                         confirmButtonColor: '#dc2626'
                     });
                 }
                 
-                input.value = ''; // Reset input file
+                input.value = ''; // Reset input
             };
 
             reader.readAsArrayBuffer(file);
