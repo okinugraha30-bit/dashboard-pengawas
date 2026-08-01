@@ -110,6 +110,7 @@
         let studentLogs = JSON.parse(localStorage.getItem('cbt_student_logs')) || {};
         let studentRoomMap = JSON.parse(localStorage.getItem('cbt_room_map')) || {};
         let pubnub = null;
+        let isExamPaused = JSON.parse(localStorage.getItem('cbt_exam_paused')) || false;
 
         document.addEventListener('DOMContentLoaded', () => {
             if (localStorage.getItem('isProctorLoggedIn') === 'true') {
@@ -117,6 +118,7 @@
                 rebuildRoomDropdown();
                 updateStats();
                 renderTable();
+                updatePauseButtonUI();
             } else {
                 showLogin();
             }
@@ -133,6 +135,7 @@
                 rebuildRoomDropdown();
                 updateStats();
                 renderTable();
+                updatePauseButtonUI();
             } else {
                 document.getElementById('loginErrorMessage').classList.remove('hidden');
             }
@@ -148,13 +151,16 @@
         function saveData() {
             localStorage.setItem('cbt_student_logs', JSON.stringify(studentLogs));
             localStorage.setItem('cbt_room_map', JSON.stringify(studentRoomMap));
+            localStorage.setItem('cbt_exam_paused', JSON.stringify(isExamPaused));
         }
 
         function initPubNub() {
             if (typeof PubNub !== 'undefined' && !pubnub) {
                 pubnub = new PubNub({ publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87", subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659", uuid: "proctor_utama" });
                 pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
-                pubnub.addListener({ message: (msg) => { if (msg.message && msg.message.type === "VIOLATION") handleIncomingViolation(msg.message); } });
+                pubnub.addListener({ message: (msg) => { 
+                    if (msg.message && msg.message.type === "VIOLATION") handleIncomingViolation(msg.message); 
+                } });
             }
         }
 
@@ -305,9 +311,30 @@
         }
 
         function toggleGlobalExam() {
+            isExamPaused = !isExamPaused;
+            saveData();
+            updatePauseButtonUI();
             if (pubnub) {
-                pubnub.publish({ channel: "cbt_monitoring_channel", message: { type: "GLOBAL_PAUSE" } });
-                alert("Perintah kontrol ujian dikirim ke semua peserta.");
+                pubnub.publish({ 
+                    channel: "cbt_monitoring_channel", 
+                    message: { type: isExamPaused ? "GLOBAL_PAUSE" : "GLOBAL_RESUME" } 
+                }, (status) => {
+                    if (!status.error) {
+                        alert(isExamPaused ? "Ujian berhasil dijeda secara global untuk semua peserta." : "Ujian dilanjutkan kembali.");
+                    }
+                });
+            }
+        }
+
+        function updatePauseButtonUI() {
+            const btn = document.getElementById('btnGlobalExam');
+            if (!btn) return;
+            if (isExamPaused) {
+                btn.textContent = "Lanjutkan Ujian";
+                btn.className = "bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-lg text-sm font-semibold transition";
+            } else {
+                btn.textContent = "Jeda Ujian";
+                btn.className = "bg-amber-600 hover:bg-amber-500 text-white px-3 py-2 rounded-lg text-sm font-semibold transition";
             }
         }
 
