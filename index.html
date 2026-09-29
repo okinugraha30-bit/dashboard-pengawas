@@ -165,7 +165,7 @@
 
         function initPubNub() {
             if (typeof PubNub !== 'undefined' && !pubnub) {
-                pubnub = new PubNub({ publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87", subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659", uuid: "proctor_utama" });
+                pubnub = new PubNub({ publishKey: "pub-c-99d01c53-1242-49bd-b669-39137f5dac10", subscribeKey: "sub-c-c250375d-d054-4700-9d6d-b34223f6ec73", uuid: "proctor_utama" });
                 pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
                 pubnub.addListener({ message: (msg) => { 
                     if (msg.message && msg.message.type === "VIOLATION") handleIncomingViolation(msg.message); 
