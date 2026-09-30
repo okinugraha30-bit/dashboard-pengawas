@@ -84,7 +84,10 @@
                     </select>
                     <input type="text" id="searchInput" onkeyup="renderTable()" placeholder="Cari nama siswa..." class="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 outline-none w-full md:w-64">
                 </div>
-                <button onclick="resetLogs()" class="bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-600/50 px-3 py-2 rounded-lg text-sm font-semibold transition">Reset Log Pelanggaran</button>
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="clearRooms()" class="bg-amber-600/20 hover:bg-amber-600 text-amber-400 hover:text-white border border-amber-600/50 px-3 py-2 rounded-lg text-sm font-semibold transition">Clear Ruangan</button>
+                    <button onclick="resetLogs()" class="bg-rose-600/20 hover:bg-rose-600 text-rose-400 hover:text-white border border-rose-600/50 px-3 py-2 rounded-lg text-sm font-semibold transition">Reset Log Pelanggaran</button>
+                </div>
             </div>
 
             <div class="bg-slate-800 rounded-xl border border-slate-700 overflow-hidden shadow-xl">
@@ -163,9 +166,38 @@
                 .trim();
         }
 
+        // Cocokkan nama dari Moodle (mis. "Nama 2024/2025 (Log out)") dengan nama di Excel.
+        // Cocok jika kunci sama persis, atau nama Excel adalah awalan dan sisanya hanya
+        // tahun ajaran / "logout" (bukan nama lain yang kebetulan diawali sama).
+        function findRoom(name) {
+            const key = getCleanKey(name);
+            if (!key) return null;
+            if (studentRoomMap[key]) return studentRoomMap[key];
+            let best = null;
+            for (const k in studentRoomMap) {
+                if (!k || !key.startsWith(k)) continue;
+                const rest = key.slice(k.length);
+                if (/^(\d|logout)/.test(rest) && (!best || k.length > best.length)) best = k;
+            }
+            return best ? studentRoomMap[best] : null;
+        }
+
+        function clearRooms() {
+            if (!confirm("Hapus seluruh data mapping ruangan? (Log pelanggaran tidak dihapus)")) return;
+            studentRoomMap = {};
+            Object.values(studentLogs).forEach(l => { l.room = "Ruang Ujian"; });
+            const sel = document.getElementById('roomFilter');
+            if (sel) sel.value = "ALL";
+            saveData();
+            rebuildRoomDropdown();
+            updateStats();
+            renderTable();
+            alert("Mapping ruangan sudah dikosongkan. Silakan import ruangan baru.");
+        }
+
         function initPubNub() {
             if (typeof PubNub !== 'undefined' && !pubnub) {
-                pubnub = new PubNub({ publishKey: "pub-c-99d01c53-1242-49bd-b669-39137f5dac10", subscribeKey: "sub-c-c250375d-d054-4700-9d6d-b34223f6ec73", uuid: "proctor_utama" });
+                pubnub = new PubNub({ publishKey: "pub-c-5618932f-1208-4f99-81ed-334268b10f87", subscribeKey: "sub-c-a8bf0e07-65d5-4794-8564-7567ee20e659", uuid: "proctor_utama" });
                 pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
                 pubnub.addListener({ message: (msg) => { 
                     if (msg.message && msg.message.type === "VIOLATION") handleIncomingViolation(msg.message); 
@@ -176,9 +208,8 @@
         function handleIncomingViolation(data) {
             const rawName = data.studentName || "";
             const cleanName = rawName.split(' - ')[0].trim().replace(/\s+/g, ' ');
-            const lookupKey = getCleanKey(cleanName);
             
-            const assignedRoom = studentRoomMap[lookupKey] || data.roomName || "Ruang Ujian";
+            const assignedRoom = findRoom(cleanName) || data.roomName || "Ruang Ujian";
 
             if (!studentLogs[cleanName]) {
                 studentLogs[cleanName] = { name: cleanName, room: assignedRoom, reason: data.reason, count: data.count, time: data.timestamp, status: "LOCKED" };
@@ -202,14 +233,14 @@
             
             const rooms = new Set(Object.values(studentRoomMap));
             Object.values(studentLogs).forEach(i => {
-                const lookupKey = getCleanKey(i.name);
-                const effectiveRoom = studentRoomMap[lookupKey] || i.room;
+                const effectiveRoom = findRoom(i.name) || i.room;
                 if (effectiveRoom) rooms.add(effectiveRoom);
             });
             
             selectEl.innerHTML = `<option value="ALL">Semua Ruangan</option>`;
             rooms.forEach(r => selectEl.innerHTML += `<option value="${r}">${r}</option>`);
             selectEl.value = currentVal;
+            if (selectEl.value !== currentVal) selectEl.value = "ALL";
         }
 
         function renderTable() {
@@ -219,8 +250,7 @@
             const roomVal = document.getElementById('roomFilter').value;
 
             const logsArray = Object.values(studentLogs).filter(i => {
-                const lookupKey = getCleanKey(i.name);
-                const effectiveRoom = studentRoomMap[lookupKey] || i.room || "Ruang Ujian";
+                const effectiveRoom = findRoom(i.name) || i.room || "Ruang Ujian";
                 i.room = effectiveRoom; 
                 
                 const matchSearch = i.name.toLowerCase().includes(searchVal);
@@ -291,19 +321,21 @@
                         studentRoomMap[sNameKey] = sRoom;
                         rooms.add(sRoom);
                         
-                        Object.keys(studentLogs).forEach(k => {
-                            if (getCleanKey(k) === sNameKey) {
-                                studentLogs[k].room = sRoom;
-                            }
-                        });
                         count++;
                     }
                 }
+                Object.keys(studentLogs).forEach(k => {
+                    const r = findRoom(k);
+                    if (r) studentLogs[k].room = r;
+                });
                 saveData();
                 rebuildRoomDropdown();
                 updateStats();
                 renderTable();
-                alert(`Berhasil impor ${count} data siswa & ${rooms.size} ruangan!`);
+                event.target.value = '';
+                alert(count === 0
+                    ? "Tidak ada data terbaca. Pastikan kolom A = Nama Siswa, kolom B = Ruang, data mulai baris 2."
+                    : `Berhasil impor ${count} data siswa & ${rooms.size} ruangan!`);
             };
             reader.readAsArrayBuffer(file);
         }
@@ -330,7 +362,10 @@
                     if (!status.error) {
                         alert("Perintah kontrol ujian dikirim ke semua peserta.");
                     } else {
-                        alert("Gagal mengirim perintah kontrol: " + status.error.message);
+                        console.error("PubNub publish gagal:", status);
+                        const detail = (status.errorData && (status.errorData.message || status.errorData.error)) ||
+                                       status.category || status.operation || "tidak diketahui";
+                        alert("Gagal mengirim perintah kontrol: " + detail);
                     }
                 });
             }
@@ -352,13 +387,11 @@
             const roomVal = document.getElementById('roomFilter').value;
             const data = Object.values(studentLogs)
                 .filter(i => {
-                    const lookupKey = getCleanKey(i.name);
-                    const effectiveRoom = studentRoomMap[lookupKey] || i.room || "Ruang Ujian";
+                    const effectiveRoom = findRoom(i.name) || i.room || "Ruang Ujian";
                     return roomVal === "ALL" || effectiveRoom === roomVal;
                 })
                 .map((i, idx) => {
-                    const lookupKey = getCleanKey(i.name);
-                    const effectiveRoom = studentRoomMap[lookupKey] || i.room || "Ruang Ujian";
+                    const effectiveRoom = findRoom(i.name) || i.room || "Ruang Ujian";
                     return { "No": idx + 1, "Nama Siswa": i.name, "Ruangan": effectiveRoom, "Pelanggaran": i.reason, "Jumlah": i.count, "Waktu": i.time, "Status": i.status };
                 });
             
