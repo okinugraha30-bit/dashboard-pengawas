@@ -197,7 +197,7 @@
 
         function initPubNub() {
             if (typeof PubNub !== 'undefined' && !pubnub) {
-                pubnub = new PubNub({ publishKey: "pub-c-99d01c53-1242-49bd-b669-39137f5dac10", subscribeKey: "sub-c-c250375d-d054-4700-9d6d-b34223f6ec73", uuid: "proctor_utama" });
+                pubnub = new PubNub({ publishKey: "pub-c-99d01c53-1242-49bd-b669-39137f5dac10", subscribeKey: "sub-c-c250375d-d054-4700-9d6d-b34223f6ec73", uuid: "proctor_utama_" + Math.random().toString(36).substring(2, 8) });
                 pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
                 pubnub.addListener({ message: (msg) => { 
                     if (msg.message && msg.message.type === "VIOLATION") handleIncomingViolation(msg.message); 
@@ -280,15 +280,36 @@
             `).join('');
         }
 
-        function unlockStudent(name) {
-            if (pubnub) pubnub.publish({ channel: "cbt_monitoring_channel", message: { type: "REMOTE_UNLOCK_COMMAND", targetStudent: name } });
-            if (studentLogs[name]) { studentLogs[name].status = "ACTIVE"; saveData(); updateStats(); renderTable(); }
+        // Kirim perintah ke siswa dengan retry otomatis (3x). Resolve true jika berhasil.
+        async function sendControl(message) {
+            if (!pubnub) { alert("PubNub belum terhubung. Refresh halaman lalu coba lagi."); return false; }
+            let lastErr = null;
+            for (let attempt = 1; attempt <= 3; attempt++) {
+                try {
+                    await pubnub.publish({ channel: "cbt_monitoring_channel", message });
+                    return true;
+                } catch (e) {
+                    lastErr = e;
+                    console.error(`Publish gagal (percobaan ${attempt}/3):`, e);
+                    await new Promise(r => setTimeout(r, 800 * attempt));
+                }
+            }
+            const detail = (lastErr && lastErr.status && lastErr.status.errorData && lastErr.status.errorData.message) ||
+                           (lastErr && lastErr.message) || "tidak diketahui";
+            alert("Gagal mengirim perintah setelah 3 percobaan: " + detail +
+                  "\nStatus siswa TIDAK diubah. Cek koneksi/ekstensi browser lalu coba lagi.");
+            return false;
         }
 
-        function forceSubmitStudent(name) {
+        async function unlockStudent(name) {
+            const ok = await sendControl({ type: "REMOTE_UNLOCK_COMMAND", targetStudent: name });
+            if (ok && studentLogs[name]) { studentLogs[name].status = "ACTIVE"; saveData(); updateStats(); renderTable(); }
+        }
+
+        async function forceSubmitStudent(name) {
             if (confirm(`Paksa kumpul (Force Submit) ujian untuk ${name}?`)) {
-                if (pubnub) pubnub.publish({ channel: "cbt_monitoring_channel", message: { type: "FORCE_SUBMIT_COMMAND", targetStudent: name } });
-                if (studentLogs[name]) { studentLogs[name].status = "FORCE_SUBMITTED"; saveData(); updateStats(); renderTable(); }
+                const ok = await sendControl({ type: "FORCE_SUBMIT_COMMAND", targetStudent: name });
+                if (ok && studentLogs[name]) { studentLogs[name].status = "FORCE_SUBMITTED"; saveData(); updateStats(); renderTable(); }
             }
         }
 
@@ -349,26 +370,14 @@
             }
         }
 
-        function toggleGlobalExam() {
-            isExamPaused = !isExamPaused;
+        async function toggleGlobalExam() {
+            const target = !isExamPaused;
+            const ok = await sendControl({ type: target ? "GLOBAL_PAUSE" : "GLOBAL_RESUME" });
+            if (!ok) return;
+            isExamPaused = target;
             saveData();
             updatePauseButtonUI();
-            
-            if (pubnub) {
-                pubnub.publish({ 
-                    channel: "cbt_monitoring_channel", 
-                    message: { type: isExamPaused ? "GLOBAL_PAUSE" : "GLOBAL_RESUME" } 
-                }, (status) => {
-                    if (!status.error) {
-                        alert("Perintah kontrol ujian dikirim ke semua peserta.");
-                    } else {
-                        console.error("PubNub publish gagal:", status);
-                        const detail = (status.errorData && (status.errorData.message || status.errorData.error)) ||
-                                       status.category || status.operation || "tidak diketahui";
-                        alert("Gagal mengirim perintah kontrol: " + detail);
-                    }
-                });
-            }
+            alert("Perintah kontrol ujian dikirim ke semua peserta.");
         }
 
         function updatePauseButtonUI() {
