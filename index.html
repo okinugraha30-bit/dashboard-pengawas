@@ -197,7 +197,7 @@
 
         function initPubNub() {
             if (typeof PubNub !== 'undefined' && !pubnub) {
-                pubnub = new PubNub({ publishKey: "pub-c-99d01c53-1242-49bd-b669-39137f5dac10", subscribeKey: "sub-c-c250375d-d054-4700-9d6d-b34223f6ec73", uuid: "proctor_utama_" + Math.random().toString(36).substring(2, 8) });
+                pubnub = new PubNub({ publishKey: "pub-c-126f2b4a-8712-47a3-b59d-e0d05dc4e930", subscribeKey: "sub-c-5ffd2f1d-a955-4aa9-9f4c-6667cc1427c6", uuid: "proctor_utama_" + Math.random().toString(36).substring(2, 8) });
                 pubnub.subscribe({ channels: ["cbt_monitoring_channel"] });
                 pubnub.addListener({ message: (msg) => { 
                     if (msg.message && msg.message.type === "VIOLATION") handleIncomingViolation(msg.message); 
